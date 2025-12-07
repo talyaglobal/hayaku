@@ -7,7 +7,7 @@ import { CheckCircle } from 'lucide-react'
 
 export default function OrderConfirmationPage() {
   const searchParams = useSearchParams()
-  const orderNumber = searchParams.get('orderNumber')
+  const orderNumber = searchParams?.get('orderNumber')
   const router = useRouter()
 
   useEffect(() => {
