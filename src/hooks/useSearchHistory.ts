@@ -104,7 +104,7 @@ export function useSearchHistory() {
   }, [searchHistory])
 
   // Search through history
-  const searchHistory = useCallback((searchTerm: string): SearchHistoryItem[] => {
+  const searchInHistory = useCallback((searchTerm: string): SearchHistoryItem[] => {
     if (!searchTerm.trim()) return []
     
     const term = searchTerm.toLowerCase()
@@ -155,7 +155,7 @@ export function useSearchHistory() {
     clearHistory,
     getRecentSearches,
     getPopularSearches,
-    searchHistory: searchHistory,
+    searchInHistory,
     getSearchesByDate,
     getSearchAnalytics,
   }

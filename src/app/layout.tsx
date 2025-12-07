@@ -1,10 +1,8 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { defaultMetadata, structuredData } from '@/lib/metadata'
 
-export const metadata: Metadata = {
-  title: 'Hayaku - Luxury E-commerce',
-  description: 'Premium luxury fashion and lifestyle products',
-}
+export const metadata: Metadata = defaultMetadata
 
 export default function RootLayout({
   children,
@@ -13,12 +11,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData),
+          }}
+        />
+      </head>
       <body>
         <header>
           <nav role="navigation">
             <div>
-              <a href="/">Hayaku</a>
+              <a href="/">HAYAKU</a>
               <a href="/products">Products</a>
+              <a href="/about">About Teo</a>
+              <a href="/safety">Safety</a>
             </div>
             <button aria-label="Cart" role="button">Cart</button>
           </nav>
@@ -27,19 +35,19 @@ export default function RootLayout({
           {children}
           {/* Emergency fallback homepage content */}
           <div id="homepage-fallback" style={{ display: 'none' }}>
-            <h1>Welcome to Hayaku</h1>
-            <p>Luxury fashion and lifestyle e-commerce platform</p>
+            <h1>Welcome to HAYAKU</h1>
+            <p>Tech backpacks made by Gen Z, for Gen Z</p>
             <div>
               <h2>Featured Products</h2>
               <div data-testid="product-card">
-                <h3>Sample Product 1</h3>
-                <p>Premium luxury item</p>
-                <button data-testid="add-to-cart">Add to Cart</button>
+                <h3>HAYABUSAX1</h3>
+                <p>The perfect starter pack for students</p>
+                <button data-testid="add-to-cart">Pre-Order Now</button>
               </div>
               <div data-testid="product-card">
-                <h3>Sample Product 2</h3>
-                <p>Designer accessory</p>
-                <button data-testid="add-to-cart">Add to Cart</button>
+                <h3>HAYABUSAX2POWER</h3>
+                <p>For creators and power users</p>
+                <button data-testid="add-to-cart">Pre-Order Now</button>
               </div>
             </div>
           </div>
@@ -50,7 +58,7 @@ export default function RootLayout({
                 const main = document.querySelector('main');
                 if (fallback && main) {
                   main.innerHTML = fallback.innerHTML;
-                  document.title = 'Hayaku - Luxury E-commerce';
+                  document.title = 'HAYAKU - Tech Backpacks Made by Gen Z, For Gen Z';
                 }
               }
             `

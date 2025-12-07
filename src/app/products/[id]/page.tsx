@@ -139,15 +139,11 @@ export default function ProductDetailPage() {
                 <button 
                   onClick={() => {
                     const cartItem = {
-                      id: product.id,
-                      productId: product.id,
-                      name: product.name,
+                      id: `${product.id}-${Date.now()}`,
+                      product: product,
                       price: product.price,
-                      image: product.product_images?.[0]?.url || '/placeholder.jpg',
-                      brand: product.brands?.name || 'Unknown Brand',
                       size: '',
-                      color: '',
-                      inStock: true
+                      color: ''
                     }
                     addItem(cartItem)
                     toggleCart()

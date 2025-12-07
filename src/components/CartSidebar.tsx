@@ -44,16 +44,16 @@ export default function CartSidebar() {
                   <div key={item.id} className="flex gap-4 py-4 border-b">
                     <div className="w-16 h-16 relative rounded-md overflow-hidden">
                       <Image
-                        src={item.image}
-                        alt={item.name}
+                        src={item.product.product_images?.[0]?.url || '/placeholder.jpg'}
+                        alt={item.product.name}
                         fill
                         className="object-cover"
                       />
                     </div>
                     
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{item.name}</h3>
-                      <p className="text-sm text-gray-600">{item.brand}</p>
+                      <h3 className="font-medium text-gray-900">{item.product.name}</h3>
+                      <p className="text-sm text-gray-600">{item.product.brands?.name || 'Unknown Brand'}</p>
                       <p className="text-sm text-gray-600">
                         {item.size && `Size: ${item.size}`}
                         {item.color && ` • Color: ${item.color}`}

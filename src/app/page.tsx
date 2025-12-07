@@ -1,25 +1,22 @@
-import React from 'react'
+import Hero from '@/components/sections/Hero'
+import Founder from '@/components/sections/Founder'
+import Features from '@/components/sections/Features'
+import Products from '@/components/sections/Products'
+import Safety from '@/components/sections/Safety'
+import Testimonials from '@/components/sections/Testimonials'
+import CTA from '@/components/sections/CTA'
 
 export default function HomePage() {
+  // HAYAKU marketing homepage
   return (
-    <div>
-      <h1>Welcome to Hayaku</h1>
-      <p>Luxury fashion and lifestyle e-commerce platform</p>
-      
-      {/* Sample product cards for testing */}
-      <div>
-        <h2>Featured Products</h2>
-        <div data-testid="product-card">
-          <h3>Sample Product 1</h3>
-          <p>Premium luxury item</p>
-          <button data-testid="add-to-cart">Add to Cart</button>
-        </div>
-        <div data-testid="product-card">
-          <h3>Sample Product 2</h3>
-          <p>Designer accessory</p>
-          <button data-testid="add-to-cart">Add to Cart</button>
-        </div>
-      </div>
+    <div className="min-h-screen">
+      <Hero />
+      <Founder />
+      <Features />
+      <Products />
+      <Safety />
+      <Testimonials />
+      <CTA />
     </div>
   )
 }

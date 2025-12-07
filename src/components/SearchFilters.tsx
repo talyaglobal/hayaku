@@ -44,7 +44,8 @@ export default function SearchFilters({
   }
 
   const handlePriceRangeChange = (index: 0 | 1, value: number) => {
-    const newRange: [number, number] = [...filters.priceRange] as [number, number]
+    const currentRange = Array.isArray(filters.priceRange) ? filters.priceRange : [filters.priceRange?.min || 0, filters.priceRange?.max || 10000]
+    const newRange: [number, number] = [...currentRange] as [number, number]
     newRange[index] = value
     handleFilterChange('priceRange', newRange)
   }

@@ -18,6 +18,35 @@ export interface Product {
   updated_at?: string
 }
 
+export interface Brand {
+  id: string
+  name: string
+  slug: string
+  is_featured?: boolean
+  is_active?: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+export interface Category {
+  id: string
+  name: string
+  slug: string
+  is_featured?: boolean
+  is_active?: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CartItem {
+  id: string
+  product: Product
+  quantity: number
+  price: number
+  size?: string
+  color?: string
+}
+
 export interface Order {
   id: string
   order_number?: string
