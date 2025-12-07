@@ -6,7 +6,8 @@ import { useAuth } from '@/components/AuthProvider'
 import { Order, OrderItem } from '@/types'
 
 export default function OrderDetailPage() {
-  const { id } = useParams()
+  const params = useParams()
+  const id = params?.id as string
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [order, setOrder] = useState<Order & { order_items: OrderItem[] } | null>(null)

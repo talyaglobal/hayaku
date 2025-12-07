@@ -7,7 +7,8 @@ import { Product } from '@/types'
 import { useCartStore } from '@/lib/cart-store'
 
 export default function ProductDetailPage() {
-  const { id } = useParams()
+  const params = useParams()
+  const id = params?.id as string
   const { addItem, toggleCart } = useCartStore()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
