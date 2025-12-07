@@ -107,7 +107,7 @@ export default function OrderDetailPage() {
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Payment Status</h3>
                 <p className={`mt-1 text-sm ${order.payment_status === 'paid' ? 'text-green-600' : 'text-red-600'}`}>
-                  {order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)}
+                  {order.payment_status ? order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1) : 'Unknown'}
                 </p>
               </div>
             </div>
@@ -147,19 +147,19 @@ export default function OrderDetailPage() {
                   <span className="text-sm text-gray-600">Subtotal:</span>
                   <span className="text-sm text-gray-900">{order.currency} {order.subtotal}</span>
                 </div>
-                {order.tax_amount > 0 && (
+                {(order.tax_amount || 0) > 0 && (
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Tax:</span>
                     <span className="text-sm text-gray-900">{order.currency} {order.tax_amount}</span>
                   </div>
                 )}
-                {order.shipping_amount > 0 && (
+                {(order.shipping_amount || 0) > 0 && (
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Shipping:</span>
                     <span className="text-sm text-gray-900">{order.currency} {order.shipping_amount}</span>
                   </div>
                 )}
-                {order.discount_amount > 0 && (
+                {(order.discount_amount || 0) > 0 && (
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Discount:</span>
                     <span className="text-sm text-green-600">-{order.currency} {order.discount_amount}</span>

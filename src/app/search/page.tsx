@@ -140,11 +140,11 @@ export default function SearchPage() {
         if (!matchesText) return false
         
         // Apply filters
-        if (currentFilters.brands.length > 0 && !currentFilters.brands.includes(product.brands?.name || '')) return false
-        if (currentFilters.categories.length > 0 && !currentFilters.categories.includes(product.categories?.name || '')) return false
-        if (product.price < currentFilters.priceRange[0] || product.price > currentFilters.priceRange[1]) return false
+        if ((currentFilters.brands?.length || 0) > 0 && !currentFilters.brands?.includes(product.brands?.name || '')) return false
+        if ((currentFilters.categories?.length || 0) > 0 && !currentFilters.categories?.includes(product.categories?.name || '')) return false
+        if (product.price < (currentFilters.priceRange?.[0] || 0) || product.price > (currentFilters.priceRange?.[1] || Infinity)) return false
         if (currentFilters.inStock && !product.is_active) return false
-        if (currentFilters.isNew && new Date(product.created_at) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) return false
+        if (currentFilters.isNew && product.created_at && new Date(product.created_at) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) return false
         if (currentFilters.isLimitedEdition && !product.tags?.includes('limited')) return false
         
         return true
@@ -321,9 +321,9 @@ export default function SearchPage() {
                   </p>
                 </div>
 
-                {searchResults.totalResults > 0 ? (
+                {(searchResults.totalResults || 0) > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {searchResults.results.products.map(product => (
+                    {searchResults.results?.products?.map(product => (
                       <div
                         key={product.id}
                         className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"

@@ -130,7 +130,7 @@ export default function OrdersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {new Date(order.created_at).toLocaleDateString()}
+                          {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'Unknown'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
