@@ -51,6 +51,16 @@ NEXT_PUBLIC_SUPABASE_URL=https://czatymiajezqfbvwuyjf.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6YXR5bWlhamV6cWZidnd1eWpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MTAzNzIsImV4cCI6MjA3NDQ4NjM3Mn0.KHGv-1uvTWr8Qf7_oy_MyL-iJq1C0f39C3a02AexqJo
 ```
 
+### Stripe Payment Configuration:
+```
+STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_signing_secret
+```
+
+**Get Stripe keys from**: [Stripe Dashboard → API Keys](https://dashboard.stripe.com/apikeys)  
+**Get Webhook Secret from**: [Stripe Dashboard → Webhooks](https://dashboard.stripe.com/webhooks)
+
 ### Optional (for production):
 ```
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_if_needed

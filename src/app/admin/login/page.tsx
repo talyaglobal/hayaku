@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Shield, ArrowRight } from 'lucide-react'
+import { signIn } from '@/lib/auth'
+import { createClient } from '@/lib/supabase-browser'
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('')
@@ -17,21 +19,55 @@ export default function AdminLogin() {
     setIsLoading(true)
     setError('')
     
-    // Simulate login process
-    setTimeout(() => {
-      if (email === 'admin@hayaku.ca' && password === 'admin123') {
-        localStorage.setItem('adminLoggedIn', 'true')
-        router.push('/admin')
-      } else {
+    try {
+      // Sign in with Supabase
+      const { data, error: signInError } = await signIn(email, password)
+      
+      if (signInError) {
         setError('Geçersiz email veya şifre')
+        setIsLoading(false)
+        return
       }
+
+      if (!data.user) {
+        setError('Giriş başarısız')
+        setIsLoading(false)
+        return
+      }
+
+      // Check if user is admin
+      const supabase = createClient()
+      const { data: adminUser, error: adminError } = await supabase
+        .from('admin_users')
+        .select('is_active, role')
+        .eq('id', data.user.id)
+        .eq('is_active', true)
+        .single()
+
+      if (adminError || !adminUser) {
+        setError('Bu hesap admin yetkisine sahip değil')
+        setIsLoading(false)
+        // Sign out if not admin
+        await supabase.auth.signOut()
+        return
+      }
+
+      // Success - redirect to admin dashboard
+      router.push('/admin')
+    } catch (err: any) {
+      setError(err.message || 'Giriş sırasında bir hata oluştu')
       setIsLoading(false)
-    }, 1500)
+    }
   }
 
-  const handleGreenBypass = () => {
-    localStorage.setItem('adminLoggedIn', 'true')
-    router.push('/admin')
+  const handleGreenBypass = async () => {
+    // For development: try to login with default admin credentials
+    try {
+      await handleLogin({ preventDefault: () => {} } as React.FormEvent)
+    } catch {
+      // If bypass fails, still allow access (development only)
+      router.push('/admin')
+    }
   }
 
   return (
