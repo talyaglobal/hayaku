@@ -1,6 +1,13 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 
+interface InventoryUpdate {
+  product_id: string
+  previous_quantity: number
+  new_quantity: number
+  quantity_changed: number
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createServerSupabaseClient()
   
@@ -8,7 +15,7 @@ export async function POST(request: NextRequest) {
     const { orderId, items } = await request.json()
     
     // Update inventory quantities based on order
-    const inventoryUpdates = []
+    const inventoryUpdates: InventoryUpdate[] = []
     
     for (const item of items) {
       // Get current inventory
