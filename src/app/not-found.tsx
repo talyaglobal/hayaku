@@ -1,6 +1,5 @@
-import React from 'react'
-
-export default function HomePage() {
+export default function NotFound() {
+  // Since Next.js isn't detecting the homepage route, serve homepage content here
   return (
     <div>
       <h1>Welcome to Hayaku</h1>

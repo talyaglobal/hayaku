@@ -153,18 +153,21 @@ export default function SearchPage() {
       const results: SearchResults = {
         query,
         totalResults: filteredProducts.length,
+        products: filteredProducts,
+        total: filteredProducts.length,
+        page: 1,
+        hasMore: false,
         results: {
           products: filteredProducts,
+          total: filteredProducts.length,
+          page: 1,
+          hasMore: false,
           brands: availableBrands.filter(brand => 
             brand.toLowerCase().includes(query.toLowerCase())
           ).map(name => ({ 
             id: name.toLowerCase(), 
             name, 
             slug: name.toLowerCase().replace(' ', '-'),
-            is_featured: false,
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
           })),
           categories: availableCategories.filter(category => 
             category.toLowerCase().includes(query.toLowerCase())
@@ -172,10 +175,6 @@ export default function SearchPage() {
             id: name.toLowerCase(), 
             name, 
             slug: name.toLowerCase().replace(' ', '-'),
-            is_featured: false,
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
           })),
         }
       }
@@ -188,7 +187,18 @@ export default function SearchPage() {
       setSearchResults({
         query,
         totalResults: 0,
-        results: { products: [], brands: [], categories: [] }
+        products: [],
+        total: 0,
+        page: 1,
+        hasMore: false,
+        results: { 
+          products: [], 
+          total: 0,
+          page: 1,
+          hasMore: false,
+          brands: [], 
+          categories: [] 
+        }
       })
     } finally {
       setIsLoading(false)
