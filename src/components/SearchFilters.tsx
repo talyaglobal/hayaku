@@ -73,12 +73,12 @@ export default function SearchFilters({
 
   const getActiveFilterCount = () => {
     let count = 0
-    if (filters.brands.length > 0) count++
-    if (filters.categories.length > 0) count++
-    if (filters.priceRange[0] > 0 || filters.priceRange[1] < 10000) count++
-    if (filters.sizes.length > 0) count++
-    if (filters.colors.length > 0) count++
-    if (filters.materials.length > 0) count++
+    if ((filters.brands?.length || 0) > 0) count++
+    if ((filters.categories?.length || 0) > 0) count++
+    if ((filters.priceRange?.[0] || 0) > 0 || (filters.priceRange?.[1] || 10000) < 10000) count++
+    if ((filters.sizes?.length || 0) > 0) count++
+    if ((filters.colors?.length || 0) > 0) count++
+    if ((filters.materials?.length || 0) > 0) count++
     if (filters.inStock) count++
     if (filters.isNew) count++
     if (filters.isLimitedEdition) count++
