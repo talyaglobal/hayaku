@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     const cartId = carts[0].id
 
-    // Get cart items with product details
+    // Get cart items with product details and inventory
     const { data, error } = await supabase
       .from('cart_items')
       .select(`
@@ -47,7 +47,12 @@ export async function GET(request: NextRequest) {
           price,
           currency,
           brands:brand_id (name),
-          product_images!inner (url, alt_text, is_primary)
+          product_images!inner (url, alt_text, is_primary),
+          inventory:inventory (
+            quantity,
+            track_inventory,
+            allow_backorder
+          )
         )
       `)
       .eq('cart_id', cartId)
@@ -86,10 +91,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get product details
+    // Get product details with inventory
     const { data: product, error: productError } = await supabase
       .from('products')
-      .select('id, price, is_active')
+      .select(`
+        id,
+        price,
+        is_active,
+        inventory:inventory (
+          quantity,
+          track_inventory,
+          allow_backorder
+        )
+      `)
       .eq('id', productId)
       .single()
 
@@ -98,6 +112,56 @@ export async function POST(request: NextRequest) {
         { error: 'Product not found or inactive' },
         { status: 404 }
       )
+    }
+
+    // Check inventory availability
+    const inventory = product.inventory?.[0] || null
+    const trackInventory = inventory?.track_inventory !== false
+    const allowBackorder = inventory?.allow_backorder || false
+    const availableQuantity = inventory?.quantity || 0
+
+    // Calculate total quantity in cart (including what we're about to add)
+    let totalCartQuantity = quantity
+    const { data: existingItems } = await supabase
+      .from('cart_items')
+      .select('quantity')
+      .eq('product_id', productId)
+
+    if (existingItems && existingItems.length > 0) {
+      totalCartQuantity += existingItems.reduce((sum, item) => sum + item.quantity, 0)
+    }
+
+    // Check stock availability
+    if (trackInventory) {
+      if (availableQuantity === 0 && !allowBackorder) {
+        return NextResponse.json(
+          { 
+            error: 'Product is out of stock',
+            code: 'OUT_OF_STOCK',
+            availableQuantity: 0,
+            allowPreOrder: false
+          },
+          { status: 400 }
+        )
+      }
+
+      if (availableQuantity > 0 && totalCartQuantity > availableQuantity && !allowBackorder) {
+        return NextResponse.json(
+          { 
+            error: `Only ${availableQuantity} items available in stock`,
+            code: 'INSUFFICIENT_STOCK',
+            availableQuantity,
+            requestedQuantity: totalCartQuantity,
+            allowPreOrder: false
+          },
+          { status: 400 }
+        )
+      }
+
+      // If backorder is allowed and stock is 0, this is a pre-order
+      if (availableQuantity === 0 && allowBackorder) {
+        // Pre-order is allowed, continue
+      }
     }
 
     // Find or create cart

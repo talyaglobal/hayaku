@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Heart, ShoppingBag, Truck, RotateCcw, Shield, Star } from 'lucide-react'
+import { ArrowLeft, Heart, ShoppingBag, Truck, RotateCcw, Shield, Star, AlertCircle, Package } from 'lucide-react'
 import { getProduct } from '@/lib/products'
 import { useStore } from '@/lib/store'
 import { useRating } from '@/lib/rating-context'
 import { useWishlist } from '@/lib/wishlist-context'
+import { useInventory } from '@/lib/use-inventory'
 import ShoppingCart from '@/components/ShoppingCart'
 
 interface ProductPageProps {
@@ -63,32 +64,75 @@ function ProductDetail({ product }: { product: any }) {
   const { addToCart, toggleCart } = useStore()
   const { getRating, setRating: setGlobalRating } = useRating()
   const { isInWishlist, toggleWishlist } = useWishlist()
+  const { status: inventoryStatus, loading: inventoryLoading } = useInventory(product.id)
   
   const [quantity, setQuantity] = useState(1)
   const [hoverRating, setHoverRating] = useState(0)
+  const [stockError, setStockError] = useState<string | null>(null)
   
   const rating = getRating(product.id)
   const inWishlist = isInWishlist(product.id)
 
-  const handleAddToCart = () => {
-    for (let i = 0; i < quantity; i++) {
-      addToCart({
-        id: product.id,
-        productId: product.id,
-        name: product.name,
-        brand: product.brand_name || 'Luxury Brand',
-        price: product.price,
-        image: product.product_images?.[0]?.url || '/placeholder-product.jpg',
-        size: 'Standard',
-        color: 'Default',
-        inStock: true
-      })
+  const handleAddToCart = async () => {
+    setStockError(null)
+
+    // Check inventory before adding
+    if (inventoryStatus) {
+      if (inventoryStatus.isOutOfStock) {
+        setStockError('Bu ürün şu anda stokta bulunmamaktadır.')
+        return
+      }
+
+      if (inventoryStatus.availableQuantity > 0 && quantity > inventoryStatus.availableQuantity && !inventoryStatus.allowPreOrder) {
+        setStockError(`Sadece ${inventoryStatus.availableQuantity} adet ürün stokta mevcut.`)
+        return
+      }
     }
-    // Show success notification and open cart after a short delay
-    alert('Ürün sepete eklendi!')
-    setTimeout(() => {
-      toggleCart()
-    }, 100)
+
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product.id,
+          quantity
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        if (result.code === 'OUT_OF_STOCK' || result.code === 'INSUFFICIENT_STOCK') {
+          setStockError(result.error)
+          return
+        }
+        throw new Error(result.error || 'Sepete eklenirken bir hata oluştu')
+      }
+
+      // Add to local cart state for UI
+      for (let i = 0; i < quantity; i++) {
+        addToCart({
+          id: product.id,
+          productId: product.id,
+          name: product.name,
+          brand: product.brand_name || 'Luxury Brand',
+          price: product.price,
+          image: product.product_images?.[0]?.url || '/placeholder-product.jpg',
+          size: 'Standard',
+          color: 'Default',
+          inStock: inventoryStatus?.isAvailable ?? true
+        })
+      }
+
+      alert(inventoryStatus?.allowPreOrder && inventoryStatus.availableQuantity === 0 
+        ? 'Ön sipariş sepete eklendi!' 
+        : 'Ürün sepete eklendi!')
+      setTimeout(() => {
+        toggleCart()
+      }, 100)
+    } catch (error: any) {
+      setStockError(error.message || 'Sepete eklenirken bir hata oluştu')
+    }
   }
 
   return (
@@ -210,6 +254,56 @@ function ProductDetail({ product }: { product: any }) {
               )}
             </div>
 
+            {/* Stock Status */}
+            {!inventoryLoading && inventoryStatus && (
+              <div className={`p-4 rounded-lg border ${
+                inventoryStatus.isOutOfStock 
+                  ? 'bg-red-50 border-red-200' 
+                  : inventoryStatus.isLowStock 
+                    ? 'bg-yellow-50 border-yellow-200'
+                    : inventoryStatus.allowPreOrder && inventoryStatus.availableQuantity === 0
+                      ? 'bg-blue-50 border-blue-200'
+                      : 'bg-green-50 border-green-200'
+              }`}>
+                <div className="flex items-center space-x-2">
+                  {inventoryStatus.isOutOfStock ? (
+                    <>
+                      <AlertCircle className="h-5 w-5 text-red-600" />
+                      <span className="font-medium text-red-900">Stokta Yok</span>
+                    </>
+                  ) : inventoryStatus.allowPreOrder && inventoryStatus.availableQuantity === 0 ? (
+                    <>
+                      <Package className="h-5 w-5 text-blue-600" />
+                      <span className="font-medium text-blue-900">Ön Sipariş Mevcut</span>
+                    </>
+                  ) : inventoryStatus.isLowStock ? (
+                    <>
+                      <AlertCircle className="h-5 w-5 text-yellow-600" />
+                      <span className="font-medium text-yellow-900">Düşük Stok</span>
+                      <span className="text-sm text-yellow-700">
+                        (Sadece {inventoryStatus.availableQuantity} adet kaldı)
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Package className="h-5 w-5 text-green-600" />
+                      <span className="font-medium text-green-900">Stokta Var</span>
+                      {inventoryStatus.availableQuantity > 0 && (
+                        <span className="text-sm text-green-700">
+                          ({inventoryStatus.availableQuantity} adet mevcut)
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+                {inventoryStatus.allowPreOrder && inventoryStatus.availableQuantity === 0 && (
+                  <p className="text-sm text-blue-700 mt-2">
+                    Bu ürün için ön sipariş verebilirsiniz. Ürün stoklarımıza geldiğinde size bildirim göndereceğiz.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Description */}
             <div>
               <p className="text-gray-600 leading-relaxed">{product.description}</p>
@@ -245,22 +339,50 @@ function ProductDetail({ product }: { product: any }) {
                 </button>
                 <span className="w-8 text-center font-medium">{quantity}</span>
                 <button
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400"
+                  onClick={() => {
+                    const maxQuantity = inventoryStatus?.availableQuantity > 0 
+                      ? inventoryStatus.availableQuantity 
+                      : undefined
+                    if (!maxQuantity || quantity < maxQuantity) {
+                      setQuantity(quantity + 1)
+                    }
+                  }}
+                  disabled={inventoryStatus?.availableQuantity > 0 && quantity >= inventoryStatus.availableQuantity}
+                  className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   +
                 </button>
               </div>
             </div>
 
+            {/* Stock Error Message */}
+            {stockError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">{stockError}</p>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="space-y-3">
               <button
                 onClick={handleAddToCart}
-                className="w-full bg-black text-white py-3 px-6 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2"
+                disabled={inventoryStatus?.isOutOfStock && !inventoryStatus?.allowPreOrder}
+                className={`w-full py-3 px-6 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 ${
+                  inventoryStatus?.isOutOfStock && !inventoryStatus?.allowPreOrder
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : inventoryStatus?.allowPreOrder && inventoryStatus?.availableQuantity === 0
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-black text-white hover:bg-gray-800'
+                }`}
               >
                 <ShoppingBag className="h-5 w-5" />
-                <span>Sepete Ekle</span>
+                <span>
+                  {inventoryStatus?.allowPreOrder && inventoryStatus?.availableQuantity === 0
+                    ? 'Ön Sipariş Ver'
+                    : inventoryStatus?.isOutOfStock && !inventoryStatus?.allowPreOrder
+                      ? 'Stokta Yok'
+                      : 'Sepete Ekle'}
+                </span>
               </button>
               
               <button

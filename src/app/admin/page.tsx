@@ -95,10 +95,37 @@ export default function AdminDashboard() {
   const [showViewProduct, setShowViewProduct] = useState(false)
   const [viewingProduct, setViewingProduct] = useState<any>(null)
   const [productPhotos, setProductPhotos] = useState<any[]>([])
+  const [orders, setOrders] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
+  const [inventory, setInventory] = useState<any[]>([])
+  const [analytics, setAnalytics] = useState<any>(null)
+  const [isLoadingData, setIsLoadingData] = useState(false)
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    totalProducts: 0,
+    totalUsers: 0,
+    totalRevenue: 0,
+    todayOrders: 0,
+    todayRevenue: 0
+  })
+  const [recentOrders, setRecentOrders] = useState<any[]>([])
 
   useEffect(() => {
     loadData()
+    loadDashboardData()
   }, [])
+
+  useEffect(() => {
+    if (activeTab === 'orders') {
+      loadOrders()
+    } else if (activeTab === 'users') {
+      loadUsers()
+    } else if (activeTab === 'stock') {
+      loadInventory()
+    } else if (activeTab === 'dashboard') {
+      loadDashboardData()
+    }
+  }, [activeTab])
 
   const loadData = async () => {
     try {
@@ -169,22 +196,148 @@ export default function AdminDashboard() {
     sizeType: 'clothing'
   })
 
-  // Mock data
-  const stats = {
-    totalOrders: 1247,
-    totalProducts: productsList.length,
-    totalUsers: 523,
-    totalRevenue: 485760,
-    todayOrders: 23,
-    todayRevenue: 8940
+  // Load dashboard data
+  const loadDashboardData = async () => {
+    try {
+      setIsLoadingData(true)
+      const [statsResponse, analyticsResponse, ordersResponse] = await Promise.all([
+        fetch('/api/admin/stats'),
+        fetch('/api/admin/analytics?period=30'),
+        fetch('/api/admin/orders?limit=10')
+      ])
+
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json()
+        setStats({
+          totalOrders: statsData.data?.orders?.total || 0,
+          totalProducts: statsData.data?.products?.total || 0,
+          totalUsers: statsData.data?.users?.total || 0,
+          totalRevenue: statsData.data?.users?.totalRevenue || 0,
+          todayOrders: statsData.data?.orders?.today || 0,
+          todayRevenue: statsData.data?.revenue?.today || 0
+        })
+      }
+
+      if (analyticsResponse.ok) {
+        const analyticsData = await analyticsResponse.json()
+        setAnalytics(analyticsData.data)
+      }
+
+      if (ordersResponse.ok) {
+        const ordersData = await ordersResponse.json()
+        const recentOrdersData = (ordersData.data || []).map((order: any) => ({
+          id: order.order_number || order.id,
+          customer: order.user_profiles?.full_name || order.email || 'Misafir',
+          amount: parseFloat(order.total_amount) || 0,
+          status: order.status === 'delivered' ? 'Tamamlandı' : 
+                  order.status === 'shipped' ? 'Kargo' : 
+                  order.status === 'processing' ? 'İşleniyor' : 'Beklemede',
+          date: new Date(order.created_at).toLocaleDateString('tr-TR')
+        }))
+        setRecentOrders(recentOrdersData)
+      }
+    } catch (error) {
+      console.error('Error loading dashboard data:', error)
+    } finally {
+      setIsLoadingData(false)
+    }
   }
 
-  const recentOrders = [
-    { id: '1001', customer: 'Ahmet Yılmaz', amount: 2850, status: 'Tamamlandı', date: '2025-01-26' },
-    { id: '1002', customer: 'Mehmet Kaya', amount: 1650, status: 'Kargo', date: '2025-01-26' },
-    { id: '1003', customer: 'Ali Demir', amount: 425, status: 'Beklemede', date: '2025-01-25' },
-    { id: '1004', customer: 'Fatih Özkan', amount: 340, status: 'Tamamlandı', date: '2025-01-25' },
-  ]
+  // Load orders
+  const loadOrders = async () => {
+    try {
+      setIsLoadingData(true)
+      const response = await fetch('/api/admin/orders?limit=100')
+      if (response.ok) {
+        const data = await response.json()
+        setOrders(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading orders:', error)
+    } finally {
+      setIsLoadingData(false)
+    }
+  }
+
+  // Load users
+  const loadUsers = async () => {
+    try {
+      setIsLoadingData(true)
+      const response = await fetch('/api/admin/users?limit=100')
+      if (response.ok) {
+        const data = await response.json()
+        setUsers(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading users:', error)
+    } finally {
+      setIsLoadingData(false)
+    }
+  }
+
+  // Load inventory
+  const loadInventory = async () => {
+    try {
+      setIsLoadingData(true)
+      const response = await fetch('/api/inventory')
+      if (response.ok) {
+        const data = await response.json()
+        setInventory(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading inventory:', error)
+    } finally {
+      setIsLoadingData(false)
+    }
+  }
+
+  const loadLowStockAlerts = async () => {
+    try {
+      const response = await fetch('/api/inventory/alerts')
+      if (response.ok) {
+        const data = await response.json()
+        return data.data || []
+      }
+    } catch (error) {
+      console.error('Error loading low stock alerts:', error)
+    }
+    return []
+  }
+
+  const updateInventory = async (productId: string, updates: any) => {
+    try {
+      const response = await fetch(`/api/inventory/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      })
+      if (response.ok) {
+        await loadInventory()
+        return true
+      }
+    } catch (error) {
+      console.error('Error updating inventory:', error)
+    }
+    return false
+  }
+
+  const syncStock = async (source: string, updates: any[]) => {
+    try {
+      const response = await fetch('/api/inventory/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source, updates })
+      })
+      if (response.ok) {
+        await loadInventory()
+        return true
+      }
+    } catch (error) {
+      console.error('Error syncing stock:', error)
+    }
+    return false
+  }
+
 
   // MEN VIP CLUB Loyalty System Data
   const [vipMembers, setVipMembers] = useState([
@@ -550,21 +703,119 @@ export default function AdminDashboard() {
     setShowEditProduct(true)
   }
 
-  const handleUpdateProduct = () => {
+  const handleUpdateProduct = async () => {
     if (!editingProduct) return
 
-    setProductsList(productsList.map((p: any) => 
-      p.id === editingProduct.id ? editingProduct : p
-    ))
-    setShowEditProduct(false)
-    setEditingProduct(null)
-    alert('Ürün başarıyla güncellendi!')
+    try {
+      const response = await fetch(`/api/products/${editingProduct.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editingProduct.name,
+          slug: editingProduct.slug || editingProduct.name.toLowerCase().replace(/\s+/g, '-'),
+          description: editingProduct.description,
+          short_description: editingProduct.description?.substring(0, 200),
+          brand_id: editingProduct.brandId,
+          category_id: editingProduct.categoryId,
+          price: editingProduct.price,
+          compare_price: editingProduct.originalPrice,
+          is_featured: editingProduct.isNew,
+          is_active: editingProduct.inStock,
+          tags: editingProduct.tags || []
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Ürün güncellenemedi')
+      }
+
+      const { data } = await response.json()
+      
+      // Reload products
+      await loadData()
+      
+      setShowEditProduct(false)
+      setEditingProduct(null)
+      alert('Ürün başarıyla güncellendi!')
+    } catch (error: any) {
+      alert('Hata: ' + (error.message || 'Ürün güncellenemedi'))
+    }
   }
 
-  const handleDeleteProduct = (productId: string) => {
-    if (confirm('Bu ürünü silmek istediğinizden emin misiniz?')) {
-      setProductsList(productsList.filter((p: any) => p.id !== productId))
+  const handleDeleteProduct = async (productId: string) => {
+    if (!confirm('Bu ürünü silmek istediğinizden emin misiniz? Ürün pasif hale getirilecektir.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Ürün silinemedi')
+      }
+
+      // Reload products
+      await loadData()
+      
       alert('Ürün başarıyla silindi!')
+    } catch (error: any) {
+      alert('Hata: ' + (error.message || 'Ürün silinemedi'))
+    }
+  }
+
+  const handleEditOrder = async (order: any) => {
+    const newStatus = prompt(`Sipariş durumunu güncelle:\n(pending, confirmed, processing, shipped, delivered, cancelled)`, order.status)
+    if (!newStatus) return
+
+    try {
+      const response = await fetch(`/api/orders/${order.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Sipariş güncellenemedi')
+      }
+
+      await loadOrders()
+      alert('Sipariş başarıyla güncellendi!')
+    } catch (error: any) {
+      alert('Hata: ' + (error.message || 'Sipariş güncellenemedi'))
+    }
+  }
+
+  const handleEditUser = async (user: any) => {
+    const newVipTier = prompt(`VIP seviyesini güncelle:\n(Bronze, Gold, Platinum, Diamond)`, user.vip_tier || 'Bronze')
+    if (!newVipTier) return
+
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          vip_tier: newVipTier
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Kullanıcı güncellenemedi')
+      }
+
+      await loadUsers()
+      alert('Kullanıcı başarıyla güncellendi!')
+    } catch (error: any) {
+      alert('Hata: ' + (error.message || 'Kullanıcı güncellenemedi'))
     }
   }
 
@@ -604,9 +855,15 @@ export default function AdminDashboard() {
               <span className="text-sm text-gray-600">Admin User</span>
               <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
               <button
-                onClick={() => {
-                  // Sign out functionality - redirect to login or home page
-                  window.location.href = '/'
+                onClick={async () => {
+                  try {
+                    const { signOut } = await import('@/lib/auth')
+                    await signOut()
+                    window.location.href = '/admin/login'
+                  } catch (error) {
+                    console.error('Logout error:', error)
+                    window.location.href = '/admin/login'
+                  }
                 }}
                 className="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 text-sm flex items-center space-x-1"
               >
@@ -1140,7 +1397,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Sipariş Yönetimi</h2>
                 <ImportExportButtons
-                  data={recentOrders}
+                  data={orders}
                   filename="orders"
                   entityName="sipariş"
                 />
@@ -1172,7 +1429,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Bekleyen Siparişler</p>
-                      <p className="text-2xl font-bold text-gray-900">{recentOrders.filter(o => o.status === 'Beklemede').length}</p>
+                      <p className="text-2xl font-bold text-gray-900">{orders.filter((o: any) => o.status === 'pending').length}</p>
                     </div>
                     <Package className="h-8 w-8 text-orange-600" />
                   </div>
@@ -1198,7 +1455,14 @@ export default function AdminDashboard() {
                       key={status}
                       className="px-4 py-2 text-sm rounded-full border transition-colors bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200"
                     >
-                      {status} ({status === 'Tümü' ? recentOrders.length : recentOrders.filter(o => o.status === status).length})
+                      {status} ({status === 'Tümü' ? orders.length : orders.filter((o: any) => {
+                        const statusMap: any = {
+                          'Beklemede': 'pending',
+                          'Kargo': 'shipped',
+                          'Tamamlandı': 'delivered'
+                        }
+                        return o.status === statusMap[status]
+                      }).length})
                     </button>
                   ))}
                 </div>
@@ -1223,11 +1487,15 @@ export default function AdminDashboard() {
                 </div>
                 
                 <div className="overflow-x-auto">
+                  {isLoadingData ? (
+                    <div className="p-8 text-center text-gray-500">Yükleniyor...</div>
+                  ) : (
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sipariş ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sipariş No</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ürünler</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tutar</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tarih</th>
@@ -1829,7 +2097,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Toplam Kullanıcı</p>
-                      <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+                      <p className="text-2xl font-bold text-gray-900">{users.length || 0}</p>
                     </div>
                     <Users className="h-8 w-8 text-blue-600" />
                   </div>
@@ -1839,7 +2107,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Aktif Kullanıcılar</p>
-                      <p className="text-2xl font-bold text-gray-900">{users.filter(u => u.status === 'Active').length}</p>
+                      <p className="text-2xl font-bold text-gray-900">{users.length || 0}</p>
                     </div>
                     <Users className="h-8 w-8 text-green-600" />
                   </div>
@@ -1849,7 +2117,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Diamond Kullanıcılar</p>
-                      <p className="text-2xl font-bold text-gray-900">{users.filter(u => u.type === 'Diamond').length}</p>
+                      <p className="text-2xl font-bold text-gray-900">{users.filter((u: any) => u.vip_tier === 'Diamond').length}</p>
                     </div>
                     <Crown className="h-8 w-8 text-amber-600" />
                   </div>
@@ -1859,7 +2127,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Toplam Harcama</p>
-                      <p className="text-2xl font-bold text-gray-900">{users.reduce((sum, u) => sum + u.totalSpent, 0).toLocaleString('tr-TR')} TL</p>
+                      <p className="text-2xl font-bold text-gray-900">{users.reduce((sum: number, u: any) => sum + parseFloat(u.total_spent || 0), 0).toLocaleString('tr-TR')} TL</p>
                     </div>
                     <DollarSign className="h-8 w-8 text-purple-600" />
                   </div>
@@ -1877,7 +2145,7 @@ export default function AdminDashboard() {
                         key={type}
                         className="px-3 py-1 text-xs rounded-full border transition-colors bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200"
                       >
-                        {type} ({type === 'Tümü' ? users.length : users.filter(u => u.type === type).length})
+                        {type} ({type === 'Tümü' ? users.length : users.filter((u: any) => u.vip_tier === type).length})
                       </button>
                     ))}
                   </div>
@@ -1891,7 +2159,7 @@ export default function AdminDashboard() {
                       key={status}
                       className="px-3 py-1 text-xs rounded-full border transition-colors bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200"
                     >
-                      {status === 'Active' ? 'Aktif' : status === 'Inactive' ? 'Pasif' : status} ({status === 'Tümü' ? users.length : users.filter(u => u.status === status).length})
+                      {status === 'Active' ? 'Aktif' : status === 'Inactive' ? 'Pasif' : status} ({status === 'Tümü' ? users.length : users.length})
                     </button>
                   ))}
                 </div>
@@ -1916,86 +2184,80 @@ export default function AdminDashboard() {
                 </div>
                 
                 <div className="overflow-x-auto">
+                  {isLoadingData ? (
+                    <div className="p-8 text-center text-gray-500">Yükleniyor...</div>
+                  ) : users.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">Henüz kullanıcı bulunmuyor</div>
+                  ) : (
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kullanıcı</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İletişim</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tip</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">VIP Seviye</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sipariş</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Harcama</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Son Giriş</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {users.map(user => (
+                      {users.map((user: any) => (
                         <tr key={user.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="flex-shrink-0 h-10 w-10">
                                 <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                  <Users className="h-5 w-5 text-gray-600" />
+                                  <span className="text-gray-600 font-medium text-sm">
+                                    {user.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                                  </span>
                                 </div>
                               </div>
                               <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                                <div className="text-sm text-gray-500">{user.city}</div>
+                                <div className="text-sm font-medium text-gray-900">{user.full_name || 'İsimsiz'}</div>
+                                <div className="text-sm text-gray-500">ID: {user.id?.substring(0, 8)}...</div>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{user.email}</div>
-                            <div className="text-sm text-gray-500">{user.phone}</div>
+                            <div className="text-sm text-gray-900">{user.email || '-'}</div>
+                            <div className="text-sm text-gray-500">{user.phone || '-'}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              user.type === 'Diamond' ? 'bg-purple-100 text-purple-800' :
-                              user.type === 'Platinum' ? 'bg-gray-100 text-gray-800' :
-                              user.type === 'Gold' ? 'bg-yellow-100 text-yellow-800' :
-                              user.type === 'Bronze' ? 'bg-orange-100 text-orange-800' :
+                              user.vip_tier === 'Diamond' ? 'bg-purple-100 text-purple-800' :
+                              user.vip_tier === 'Platinum' ? 'bg-gray-100 text-gray-800' :
+                              user.vip_tier === 'Gold' ? 'bg-yellow-100 text-yellow-800' :
+                              user.vip_tier === 'Bronze' ? 'bg-orange-100 text-orange-800' :
                               'bg-gray-100 text-gray-800'
                             }`}>
-                              {user.type}
+                              {user.vip_tier || 'Bronze'}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {user.totalOrders}
+                            {user.total_orders || 0}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {user.totalSpent.toLocaleString('tr-TR')} TL
+                            {parseFloat(user.total_spent || 0).toLocaleString('tr-TR')} TL
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {user.lastLogin}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              user.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              {user.status === 'Active' ? 'Aktif' : 'Pasif'}
-                            </span>
+                            {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString('tr-TR') : '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex items-center space-x-2">
-                              <button className="text-blue-600 hover:text-blue-900">
+                              <button 
+                                onClick={() => window.open(`/account?user=${user.id}`, '_blank')}
+                                className="text-blue-600 hover:text-blue-900"
+                                title="Görüntüle"
+                              >
                                 <Eye className="h-4 w-4" />
                               </button>
-                              <button className="text-green-600 hover:text-green-900">
-                                <Edit className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  const newStatus = user.status === 'Active' ? 'Inactive' : 'Active'
-                                  setUsers(users.map(u => 
-                                    u.id === user.id ? { ...u, status: newStatus } : u
-                                  ))
-                                }}
-                                className={`${
-                                  user.status === 'Active' ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
-                                }`}
+                              <button 
+                                onClick={() => handleEditUser(user)}
+                                className="text-green-600 hover:text-green-900"
+                                title="Düzenle"
                               >
-                                {user.status === 'Active' ? 'Pasifleştir' : 'Aktifleştir'}
+                                <Edit className="h-4 w-4" />
                               </button>
                             </div>
                           </td>
@@ -2003,6 +2265,7 @@ export default function AdminDashboard() {
                       ))}
                     </tbody>
                   </table>
+                  )}
                 </div>
               </div>
             </div>
@@ -2375,12 +2638,28 @@ export default function AdminDashboard() {
           {activeTab === 'stock' && (
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Stok Yönetimi</h2>
-                <ImportExportButtons
-                  data={productsList}
-                  filename="stock_management"
-                  entityName="stok"
-                />
+                <h2 className="text-2xl font-bold text-gray-900">Envanter Yönetimi</h2>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={async () => {
+                      const alerts = await loadLowStockAlerts()
+                      if (alerts.length > 0) {
+                        alert(`${alerts.length} ürün için düşük stok uyarısı var!`)
+                      } else {
+                        alert('Düşük stok uyarısı bulunmuyor.')
+                      }
+                    }}
+                    className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 flex items-center space-x-2"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Düşük Stok Uyarıları</span>
+                  </button>
+                  <ImportExportButtons
+                    data={inventory}
+                    filename="inventory_management"
+                    entityName="envanter"
+                  />
+                </div>
               </div>
 
               {/* Stock Stats */}
@@ -2389,7 +2668,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Toplam Ürün</p>
-                      <p className="text-2xl font-bold text-gray-900">{productsList.length}</p>
+                      <p className="text-2xl font-bold text-gray-900">{inventory.length || productsList.length}</p>
                     </div>
                     <Package className="h-8 w-8 text-blue-600" />
                   </div>
@@ -2399,7 +2678,10 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Stokta Var</p>
-                      <p className="text-2xl font-bold text-gray-900">{productsList.filter((p: any) => p.inStock).length}</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {inventory.filter((i: any) => i.quantity > 0 && i.track_inventory).length || 
+                         productsList.filter((p: any) => p.inStock).length}
+                      </p>
                     </div>
                     <Archive className="h-8 w-8 text-green-600" />
                   </div>
@@ -2408,121 +2690,169 @@ export default function AdminDashboard() {
                 <div className="bg-white p-6 rounded-lg shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Tükenen</p>
-                      <p className="text-2xl font-bold text-gray-900">{productsList.filter((p: any) => !p.inStock).length}</p>
+                      <p className="text-sm font-medium text-gray-600">Düşük Stok</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {inventory.filter((i: any) => 
+                          i.track_inventory && 
+                          i.quantity > 0 && 
+                          i.quantity <= i.low_stock_threshold
+                        ).length}
+                      </p>
                     </div>
-                    <Archive className="h-8 w-8 text-red-600" />
+                    <AlertCircle className="h-8 w-8 text-yellow-600" />
                   </div>
                 </div>
                 
                 <div className="bg-white p-6 rounded-lg shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Toplam Değer</p>
-                      <p className="text-2xl font-bold text-gray-900">{(productsList.reduce((acc: any, p: any) => acc + p.price, 0)).toLocaleString('tr-TR')} TL</p>
+                      <p className="text-sm font-medium text-gray-600">Tükenen</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {inventory.filter((i: any) => 
+                          i.track_inventory && 
+                          i.quantity === 0 && 
+                          !i.allow_backorder
+                        ).length}
+                      </p>
                     </div>
-                    <DollarSign className="h-8 w-8 text-amber-600" />
+                    <Archive className="h-8 w-8 text-red-600" />
                   </div>
                 </div>
               </div>
 
-              {/* Stock Table */}
-              <div className="bg-white rounded-lg shadow-sm">
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Stok Durumu</h3>
+              {/* Inventory Management Table */}
+              <div className="bg-white rounded-lg shadow-sm mb-6">
+                <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Envanter Listesi</h3>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => {
+                        const lowStock = inventory.filter((i: any) => 
+                          i.track_inventory && 
+                          i.quantity > 0 && 
+                          i.quantity <= i.low_stock_threshold
+                        )
+                        if (lowStock.length > 0) {
+                          alert(`${lowStock.length} ürün düşük stokta!`)
+                        }
+                      }}
+                      className="text-sm text-yellow-600 hover:text-yellow-700"
+                    >
+                      Düşük Stokları Göster
+                    </button>
+                  </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stok ID</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ürün</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marka</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alış Fiyatı</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Satış Fiyatı</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kar Marjı</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stok Durumu</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredProducts.map((product: any) => {
-                        const purchasePrice = Math.round(product.price * 0.6) // %40 kar marjı varsayımı
-                        const profitMargin = ((product.price - purchasePrice) / purchasePrice * 100).toFixed(1)
-                        
-                        // Generate stock IDs for each size/color combination
-                        const stockItems = product.sizes && product.colors ? 
-                          product.sizes.flatMap((size: string) => 
-                            product.colors.map((color: string) => ({
-                              size,
-                              color,
-                              stockId: generateStockId(product.brand, size, color)
-                            }))
-                          ) : [{
-                            size: 'ONE SIZE',
-                            color: 'DEFAULT',
-                            stockId: generateStockId(product.brand, 'ONE-SIZE', 'DEFAULT')
-                          }]
-
-                        return stockItems.map((stockItem, index) => (
-                          <tr key={`${product.id}-${index}`}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-mono font-medium text-gray-900">{stockItem.stockId}</div>
-                              <div className="text-xs text-gray-500">{stockItem.size} - {stockItem.color}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="flex-shrink-0 h-10 w-10">
-                                  <div className="h-10 w-10 bg-gray-200 rounded-lg"></div>
-                                </div>
-                                <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                                  <div className="text-sm text-gray-500">SKU: {product.id}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{product.brand}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">{product.category}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{purchasePrice.toLocaleString('tr-TR')} TL</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{product.price.toLocaleString('tr-TR')} TL</td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                parseFloat(profitMargin) >= 50 ? 'bg-green-100 text-green-800' : 
-                                parseFloat(profitMargin) >= 30 ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-red-100 text-red-800'
-                              }`}>
-                                %{profitMargin}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                product.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                              }`}>
-                                {product.inStock ? 'Stokta' : 'Tükendi'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <button
-                                onClick={() => {
-                                  const newStatus = !product.inStock
-                                  setProductsList(productsList.map((p: any) => 
-                                    p.id === product.id ? { ...p, inStock: newStatus } : p
-                                  ))
-                                }}
-                                className={`${
-                                  product.inStock ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
-                                }`}
-                              >
-                                {product.inStock ? 'Stoktan Çıkar' : 'Stoğa Ekle'}
-                              </button>
+                {isLoadingData ? (
+                  <div className="p-8 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ürün</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Miktar</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Eşik</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durum</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ön Sipariş</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Takip</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İşlemler</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {inventory.length > 0 ? inventory.map((item: any) => {
+                          const product = item.products
+                          const isLowStock = item.track_inventory && item.quantity > 0 && item.quantity <= item.low_stock_threshold
+                          const isOutOfStock = item.track_inventory && item.quantity === 0 && !item.allow_backorder
+                          const isPreOrder = item.track_inventory && item.quantity === 0 && item.allow_backorder
+                          
+                          return (
+                            <tr key={item.id} className={isLowStock ? 'bg-yellow-50' : isOutOfStock ? 'bg-red-50' : ''}>
+                              <td className="px-6 py-4">
+                                <div className="text-sm font-medium text-gray-900">{product?.name || 'Bilinmeyen Ürün'}</div>
+                                <div className="text-sm text-gray-500">SKU: {product?.sku || item.product_id}</div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <input
+                                  type="number"
+                                  defaultValue={item.quantity}
+                                  onBlur={async (e) => {
+                                    const newQuantity = parseInt(e.target.value) || 0
+                                    await updateInventory(item.product_id, { quantity: newQuantity })
+                                  }}
+                                  className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                                />
+                              </td>
+                              <td className="px-6 py-4">
+                                <input
+                                  type="number"
+                                  defaultValue={item.low_stock_threshold}
+                                  onBlur={async (e) => {
+                                    const newThreshold = parseInt(e.target.value) || 5
+                                    await updateInventory(item.product_id, { lowStockThreshold: newThreshold })
+                                  }}
+                                  className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                                />
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  isOutOfStock ? 'bg-red-100 text-red-800' :
+                                  isLowStock ? 'bg-yellow-100 text-yellow-800' :
+                                  isPreOrder ? 'bg-blue-100 text-blue-800' :
+                                  'bg-green-100 text-green-800'
+                                }`}>
+                                  {isOutOfStock ? 'Tükendi' :
+                                   isLowStock ? 'Düşük' :
+                                   isPreOrder ? 'Ön Sipariş' :
+                                   'Stokta'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <input
+                                  type="checkbox"
+                                  checked={item.allow_backorder || false}
+                                  onChange={async (e) => {
+                                    await updateInventory(item.product_id, { allowBackorder: e.target.checked })
+                                  }}
+                                  className="h-4 w-4 text-blue-600 rounded"
+                                />
+                              </td>
+                              <td className="px-6 py-4">
+                                <input
+                                  type="checkbox"
+                                  checked={item.track_inventory !== false}
+                                  onChange={async (e) => {
+                                    await updateInventory(item.product_id, { trackInventory: e.target.checked })
+                                  }}
+                                  className="h-4 w-4 text-blue-600 rounded"
+                                />
+                              </td>
+                              <td className="px-6 py-4 text-sm">
+                                <button
+                                  onClick={async () => {
+                                    if (confirm('Stok güncellemesi yapmak istediğinizden emin misiniz?')) {
+                                      await loadInventory()
+                                    }
+                                  }}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  Güncelle
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        }) : (
+                          <tr>
+                            <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                              Envanter kaydı bulunamadı. Ürünler için envanter kayıtları oluşturulmalıdır.
                             </td>
                           </tr>
-                        ))
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}

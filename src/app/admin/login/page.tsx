@@ -21,14 +21,8 @@ export default function AdminLogin() {
     
     try {
       // Sign in with Supabase
-      const { data, error: signInError } = await signIn(email, password)
+      const data = await signIn(email, password)
       
-      if (signInError) {
-        setError('Geçersiz email veya şifre')
-        setIsLoading(false)
-        return
-      }
-
       if (!data.user) {
         setError('Giriş başarısız')
         setIsLoading(false)
@@ -54,8 +48,9 @@ export default function AdminLogin() {
 
       // Success - redirect to admin dashboard
       router.push('/admin')
+      router.refresh()
     } catch (err: any) {
-      setError(err.message || 'Giriş sırasında bir hata oluştu')
+      setError(err.message || 'Geçersiz email veya şifre')
       setIsLoading(false)
     }
   }

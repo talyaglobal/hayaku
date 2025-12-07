@@ -8,6 +8,7 @@ import { User, Package, Heart, Settings, CreditCard, MapPin, Save, Edit2, Bell, 
 import { getUserProfile, upsertUserProfile, getUserNotificationPreferences, updateNotificationPreferences } from '@/lib/supabase'
 import { getCurrentSession, signOut } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
+import AddressBook from '@/components/AddressBook'
 
 export default function AccountPage() {
   const [activeTab, setActiveTab] = useState('profile')
@@ -734,12 +735,7 @@ export default function AccountPage() {
                     </Link>
                   </div>
                 )}
-                {activeTab === 'addresses' && (
-                  <div>
-                    <h2 className="text-2xl font-luxury-serif text-luxury-charcoal mb-6">Adreslerim</h2>
-                    <p className="text-gray-600">Henüz kayıtlı adres bulunmuyor.</p>
-                  </div>
-                )}
+                {activeTab === 'addresses' && <AddressBook />}
                 {activeTab === 'payment' && (
                   <div>
                     <h2 className="text-2xl font-luxury-serif text-luxury-charcoal mb-6">Ödeme Yöntemlerim</h2>

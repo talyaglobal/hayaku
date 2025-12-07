@@ -135,7 +135,8 @@ export async function POST(request: NextRequest) {
         shipping_address,
         billing_address,
         status: 'pending',
-        payment_status: 'pending'
+        payment_status: 'pending',
+        fulfillment_status: 'unfulfilled'
       })
       .select()
       .single()
@@ -147,15 +148,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Log initial status to order_status_history
+    await supabase
+      .from('order_status_history')
+      .insert({
+        order_id: order.id,
+        from_status: null,
+        to_status: 'pending',
+        notes: 'Order created',
+        created_by: authUser.user.id
+      })
+      .catch(err => console.error('Failed to log initial status history:', err))
+
     // Create order items
     const orderItems = items.map((item: any) => ({
       order_id: order.id,
       product_id: item.product_id,
+      variant_id: item.variant_id || null,
       product_name: item.name,
       product_sku: item.sku,
       quantity: item.quantity,
       unit_price: item.price,
-      total_price: item.price * item.quantity
+      total_price: item.price * item.quantity,
+      quantity_fulfilled: 0,
+      fulfillment_status: 'unfulfilled'
     }))
 
     const { error: itemsError } = await supabase

@@ -29,6 +29,14 @@ export async function GET(
             brands (name),
             product_images (url, is_primary)
           )
+        ),
+        order_status_history (
+          id,
+          from_status,
+          to_status,
+          notes,
+          created_at,
+          created_by
         )
       `)
       .eq('id', id)
@@ -69,13 +77,21 @@ export async function PUT(
 ) {
   try {
     // Require admin authentication
-    await requireAdmin(request)
+    const authUser = await requireAdmin(request)
     
     const { id } = await params
     const body = await request.json()
     const supabase = await createClient()
     
-    const { status, payment_status, tracking_number, shipping_date, delivery_date } = body
+    const { 
+      status, 
+      payment_status, 
+      fulfillment_status,
+      tracking_number, 
+      shipping_date, 
+      delivery_date,
+      notes 
+    } = body
 
     // Get current order to check previous status
     const { data: currentOrder } = await supabase
@@ -95,15 +111,33 @@ export async function PUT(
     }
 
     const previousStatus = currentOrder.status
+    const previousPaymentStatus = currentOrder.payment_status
     const updateData: any = {
       updated_at: new Date().toISOString()
     }
 
     if (status) updateData.status = status
     if (payment_status) updateData.payment_status = payment_status
+    if (fulfillment_status) updateData.fulfillment_status = fulfillment_status
     if (tracking_number) updateData.tracking_number = tracking_number
     if (shipping_date) updateData.shipping_date = shipping_date
     if (delivery_date) updateData.delivery_date = delivery_date
+
+    // Calculate fulfillment status based on order items if not explicitly provided
+    if (!fulfillment_status && currentOrder.order_items) {
+      const totalItems = currentOrder.order_items.length
+      const fulfilledItems = currentOrder.order_items.filter(
+        (item: any) => item.fulfillment_status === 'fulfilled'
+      ).length
+      
+      if (fulfilledItems === 0) {
+        updateData.fulfillment_status = 'unfulfilled'
+      } else if (fulfilledItems === totalItems) {
+        updateData.fulfillment_status = 'fulfilled'
+      } else {
+        updateData.fulfillment_status = 'partial'
+      }
+    }
 
     // Update order
     const { data: updatedOrder, error } = await supabase
@@ -123,26 +157,105 @@ export async function PUT(
       )
     }
 
+    // Log status change to order_status_history
+    if (status && status !== previousStatus) {
+      await supabase
+        .from('order_status_history')
+        .insert({
+          order_id: id,
+          from_status: previousStatus,
+          to_status: status,
+          notes: notes || `Status changed from ${previousStatus} to ${status}`,
+          created_by: authUser.user.id
+        })
+        .catch(err => console.error('Failed to log status history:', err))
+    }
+
+    // Log payment status change
+    if (payment_status && payment_status !== previousPaymentStatus) {
+      await supabase
+        .from('order_status_history')
+        .insert({
+          order_id: id,
+          from_status: previousPaymentStatus,
+          to_status: payment_status,
+          notes: notes || `Payment status changed from ${previousPaymentStatus} to ${payment_status}`,
+          created_by: authUser.user.id
+        })
+        .catch(err => console.error('Failed to log payment status history:', err))
+    }
+
     // Handle inventory deduction when order is confirmed/processing
+    // Inventory is deducted when order moves to confirmed/processing status
     if (status && ['confirmed', 'processing'].includes(status) && !['confirmed', 'processing'].includes(previousStatus)) {
       // Deduct inventory for each order item
       for (const item of currentOrder.order_items || []) {
         if (item.product_id) {
-          const { data: inventory } = await supabase
+          // Check for variant-specific inventory first, then product-level inventory
+          let inventoryQuery = supabase
             .from('inventory')
-            .select('quantity, track_inventory')
+            .select('id, quantity, track_inventory, variant_id')
             .eq('product_id', item.product_id)
-            .single()
+          
+          if (item.variant_id) {
+            inventoryQuery = inventoryQuery.eq('variant_id', item.variant_id)
+          } else {
+            inventoryQuery = inventoryQuery.is('variant_id', null)
+          }
+
+          const { data: inventory } = await inventoryQuery.single()
 
           if (inventory && inventory.track_inventory) {
-            const newQuantity = Math.max(0, (inventory.quantity || 0) - item.quantity)
+            const currentQuantity = inventory.quantity || 0
+            if (currentQuantity < item.quantity && !inventory.allow_backorder) {
+              console.warn(`Insufficient inventory for product ${item.product_id}. Available: ${currentQuantity}, Required: ${item.quantity}`)
+            }
+            
+            const newQuantity = Math.max(0, currentQuantity - item.quantity)
             await supabase
               .from('inventory')
-              .update({ quantity: newQuantity })
-              .eq('product_id', item.product_id)
+              .update({ 
+                quantity: newQuantity,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', inventory.id)
           } else if (!inventory) {
-            // Create inventory record if it doesn't exist (shouldn't happen, but handle gracefully)
-            console.warn(`Inventory record not found for product ${item.product_id}`)
+            console.warn(`Inventory record not found for product ${item.product_id}${item.variant_id ? ` variant ${item.variant_id}` : ''}`)
+          }
+        }
+      }
+    }
+
+    // Handle inventory deduction on order completion (when shipped or delivered)
+    // This ensures inventory is deducted even if order goes directly to shipped/delivered
+    if (status && ['shipped', 'delivered'].includes(status) && !['shipped', 'delivered'].includes(previousStatus)) {
+      // Only deduct if inventory wasn't already deducted (order wasn't confirmed/processing)
+      if (!['confirmed', 'processing'].includes(previousStatus)) {
+        for (const item of currentOrder.order_items || []) {
+          if (item.product_id) {
+            let inventoryQuery = supabase
+              .from('inventory')
+              .select('id, quantity, track_inventory, variant_id')
+              .eq('product_id', item.product_id)
+            
+            if (item.variant_id) {
+              inventoryQuery = inventoryQuery.eq('variant_id', item.variant_id)
+            } else {
+              inventoryQuery = inventoryQuery.is('variant_id', null)
+            }
+
+            const { data: inventory } = await inventoryQuery.single()
+
+            if (inventory && inventory.track_inventory) {
+              const newQuantity = Math.max(0, (inventory.quantity || 0) - item.quantity)
+              await supabase
+                .from('inventory')
+                .update({ 
+                  quantity: newQuantity,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', inventory.id)
+            }
           }
         }
       }
@@ -150,25 +263,35 @@ export async function PUT(
 
     // Handle inventory restoration when order is cancelled/refunded
     if (status && ['cancelled', 'refunded'].includes(status) && !['cancelled', 'refunded'].includes(previousStatus)) {
-      // Only restore inventory if order was previously confirmed/processing (inventory was deducted)
-      if (['confirmed', 'processing', 'shipped'].includes(previousStatus)) {
+      // Only restore inventory if order was previously confirmed/processing/shipped (inventory was deducted)
+      if (['confirmed', 'processing', 'shipped', 'delivered'].includes(previousStatus)) {
         // Restore inventory for each order item
         for (const item of currentOrder.order_items || []) {
           if (item.product_id) {
-            const { data: inventory } = await supabase
+            let inventoryQuery = supabase
               .from('inventory')
-              .select('quantity, track_inventory')
+              .select('id, quantity, track_inventory, variant_id')
               .eq('product_id', item.product_id)
-              .single()
+            
+            if (item.variant_id) {
+              inventoryQuery = inventoryQuery.eq('variant_id', item.variant_id)
+            } else {
+              inventoryQuery = inventoryQuery.is('variant_id', null)
+            }
+
+            const { data: inventory } = await inventoryQuery.single()
 
             if (inventory && inventory.track_inventory) {
               const newQuantity = (inventory.quantity || 0) + item.quantity
               await supabase
                 .from('inventory')
-                .update({ quantity: newQuantity })
-                .eq('product_id', item.product_id)
+                .update({ 
+                  quantity: newQuantity,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', inventory.id)
             } else if (!inventory) {
-              console.warn(`Inventory record not found for product ${item.product_id} during restoration`)
+              console.warn(`Inventory record not found for product ${item.product_id}${item.variant_id ? ` variant ${item.variant_id}` : ''} during restoration`)
             }
           }
         }
@@ -274,6 +397,7 @@ export async function DELETE(
       .update({ 
         status: 'cancelled',
         payment_status: order.payment_status === 'paid' ? 'refunded' : 'voided',
+        fulfillment_status: 'unfulfilled',
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -286,6 +410,18 @@ export async function DELETE(
         { status: 500 }
       )
     }
+
+    // Log status change to order_status_history
+    await supabase
+      .from('order_status_history')
+      .insert({
+        order_id: id,
+        from_status: order.status,
+        to_status: 'cancelled',
+        notes: reason || 'Order cancelled by customer',
+        created_by: authUser.user.id
+      })
+      .catch(err => console.error('Failed to log cancellation status history:', err))
 
     // Restore inventory if order was confirmed/processing/shipped (inventory was deducted)
     if (['confirmed', 'processing', 'shipped'].includes(order.status)) {

@@ -280,3 +280,75 @@ export async function sendOrderCancellationEmail(data: OrderEmailData, reason?: 
     return false
   }
 }
+
+export interface LowStockAlertData {
+  productName: string
+  productSku: string
+  currentQuantity: number
+  threshold: number
+  adminEmail: string
+}
+
+/**
+ * Send low stock alert email to admin
+ */
+export async function sendLowStockAlertEmail(data: LowStockAlertData): Promise<boolean> {
+  try {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #f59e0b; color: white; padding: 20px; text-align: center; }
+          .content { background-color: #f9f9f9; padding: 20px; }
+          .alert-box { background-color: white; padding: 20px; margin: 15px 0; border-radius: 5px; border-left: 4px solid #f59e0b; }
+          .quantity { font-size: 24px; font-weight: bold; color: #f59e0b; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Düşük Stok Uyarısı</h1>
+          </div>
+          <div class="content">
+            <p>Sayın Yönetici,</p>
+            <p>Aşağıdaki ürünün stoğu düşük seviyeye ulaşmıştır:</p>
+            
+            <div class="alert-box">
+              <h3>${data.productName}</h3>
+              <p><strong>SKU:</strong> ${data.productSku}</p>
+              <p><strong>Mevcut Stok:</strong> <span class="quantity">${data.currentQuantity}</span></p>
+              <p><strong>Eşik Değeri:</strong> ${data.threshold}</p>
+              <p><strong>Durum:</strong> ${data.currentQuantity === 0 ? 'Stokta Yok' : 'Düşük Stok'}</p>
+            </div>
+            
+            <p>Lütfen stok takviyesi yapmayı düşünün.</p>
+            <p>Yönetim paneline giriş yaparak stok durumunu kontrol edebilirsiniz.</p>
+          </div>
+          <div class="footer">
+            <p>Bu e-posta otomatik olarak gönderilmiştir.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+
+    const mailOptions = {
+      from: `"Hayaku Stok Sistemi" <${emailConfig.auth.user}>`,
+      to: data.adminEmail,
+      subject: `Düşük Stok Uyarısı - ${data.productName}`,
+      html: htmlContent
+    }
+
+    const info = await transporter.sendMail(mailOptions)
+    console.log('Low stock alert email sent:', info.messageId)
+    return true
+  } catch (error) {
+    console.error('Error sending low stock alert email:', error)
+    return false
+  }
+}
