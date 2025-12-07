@@ -151,7 +151,7 @@ export default function SearchFilters({
                   <label key={brand} className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={filters.brands.includes(brand)}
+                      checked={filters.brands?.includes(brand) || false}
                       onChange={() => handleArrayFilterChange('brands', brand)}
                       className="rounded border-gray-300"
                     />
@@ -169,7 +169,7 @@ export default function SearchFilters({
                   <label key={category} className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={filters.categories.includes(category)}
+                      checked={filters.categories?.includes(category) || false}
                       onChange={() => handleArrayFilterChange('categories', category)}
                       className="rounded border-gray-300"
                     />
@@ -220,7 +220,7 @@ export default function SearchFilters({
                     key={size}
                     onClick={() => handleArrayFilterChange('sizes', size)}
                     className={`px-2 py-1 text-xs rounded border ${
-                      filters.sizes.includes(size)
+                      filters.sizes?.includes(size) || false
                         ? 'bg-blue-500 text-white border-blue-500'
                         : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
                     }`}
@@ -240,7 +240,7 @@ export default function SearchFilters({
                     key={color}
                     onClick={() => handleArrayFilterChange('colors', color)}
                     className={`px-3 py-1 text-xs rounded-full border ${
-                      filters.colors.includes(color)
+                      filters.colors?.includes(color) || false
                         ? 'bg-blue-500 text-white border-blue-500'
                         : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
                     }`}
@@ -259,7 +259,7 @@ export default function SearchFilters({
                   <label key={material} className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={filters.materials.includes(material)}
+                      checked={filters.materials?.includes(material) || false}
                       onChange={() => handleArrayFilterChange('materials', material)}
                       className="rounded border-gray-300"
                     />
