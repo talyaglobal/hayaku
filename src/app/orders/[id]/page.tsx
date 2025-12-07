@@ -95,7 +95,7 @@ export default function OrderDetailPage() {
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Order Date</h3>
                 <p className="mt-1 text-sm text-gray-900">
-                  {new Date(order.created_at).toLocaleDateString()}
+                  {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'Unknown'}
                 </p>
               </div>
               <div>
