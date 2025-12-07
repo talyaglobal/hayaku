@@ -83,7 +83,7 @@ export function useRecommendations(allProducts: Product[] = []) {
       if (product.compare_price && product.compare_price > product.price) score *= 1.3
       
       // Newer products trend higher
-      const daysSinceCreated = (Date.now() - new Date(product.created_at).getTime()) / (1000 * 60 * 60 * 24)
+      const daysSinceCreated = product.created_at ? (Date.now() - new Date(product.created_at).getTime()) / (1000 * 60 * 60 * 24) : 365
       if (daysSinceCreated < 30) score *= 1.2
       
       mockTrendingScores[product.id] = score
@@ -283,7 +283,7 @@ export function useRecommendations(allProducts: Product[] = []) {
     return allProducts
       .filter(product => 
         product.is_active && 
-        new Date(product.created_at) >= thirtyDaysAgo
+        product.created_at && new Date(product.created_at) >= thirtyDaysAgo
       )
       .map(product => ({
         product,
@@ -291,7 +291,11 @@ export function useRecommendations(allProducts: Product[] = []) {
         reasons: ['New arrival', 'Latest collection'],
         engine: 'new_arrivals' as const,
       }))
-      .sort((a, b) => new Date(b.product.created_at).getTime() - new Date(a.product.created_at).getTime())
+      .sort((a, b) => {
+        const dateA = a.product.created_at ? new Date(a.product.created_at).getTime() : 0
+        const dateB = b.product.created_at ? new Date(b.product.created_at).getTime() : 0
+        return dateB - dateA
+      })
       .slice(0, options.limit || 5)
   }, [allProducts])
 
