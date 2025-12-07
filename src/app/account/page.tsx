@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { User, Package, Heart, Settings, CreditCard, MapPin, Save, Edit2, Bell, Crown, Award, Star, Diamond, Loader2 } from 'lucide-react'
+import { User, Package, Heart, Settings, CreditCard, MapPin, Save, Edit2, Bell, Crown, Award, Star, Diamond, Loader2, Gift } from 'lucide-react'
 import { getUserProfile, upsertUserProfile, getUserNotificationPreferences, updateNotificationPreferences } from '@/lib/supabase'
 import { getCurrentSession, signOut } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import AddressBook from '@/components/AddressBook'
+import ReferralProgram from '@/components/ReferralProgram'
 
 export default function AccountPage() {
   const [activeTab, setActiveTab] = useState('profile')
@@ -701,6 +702,18 @@ export default function AccountPage() {
                     <Bell className="h-5 w-5" />
                     <span>Bildirim Ayarları</span>
                   </button>
+                  
+                  <button
+                    onClick={() => setActiveTab('referrals')}
+                    className={`w-full flex items-center space-x-3 p-3 rounded-lg text-left transition-colors ${
+                      activeTab === 'referrals' 
+                        ? 'bg-luxury-gold/10 text-luxury-gold' 
+                        : 'hover:bg-gray-50 text-gray-700 hover:text-luxury-gold'
+                    }`}
+                  >
+                    <Gift className="h-5 w-5" />
+                    <span>Referans Programı</span>
+                  </button>
                 </nav>
               </div>
             </div>
@@ -742,6 +755,7 @@ export default function AccountPage() {
                     <p className="text-gray-600">Henüz kayıtlı ödeme yöntemi bulunmuyor.</p>
                   </div>
                 )}
+                {activeTab === 'referrals' && <ReferralProgram />}
               </div>
             </div>
           </div>

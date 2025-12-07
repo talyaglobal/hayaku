@@ -200,22 +200,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if item already exists in cart
-    const { data: existingItems } = await supabase
+    const { data: existingCartItems } = await supabase
       .from('cart_items')
       .select('id, quantity')
       .eq('cart_id', cart.id)
       .eq('product_id', productId)
 
     let result
-    if (existingItems && existingItems.length > 0) {
+    if (existingCartItems && existingCartItems.length > 0) {
       // Update existing item quantity
       const { data, error } = await supabase
         .from('cart_items')
         .update({ 
-          quantity: existingItems[0].quantity + quantity,
+          quantity: existingCartItems[0].quantity + quantity,
           updated_at: new Date().toISOString()
         })
-        .eq('id', existingItems[0].id)
+        .eq('id', existingCartItems[0].id)
         .select()
         .single()
 

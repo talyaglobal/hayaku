@@ -24,7 +24,8 @@ import {
   Instagram,
   Archive,
   LogOut,
-  Hash
+  Hash,
+  AlertCircle
 } from 'lucide-react'
 import { getProducts, getBrands } from '@/lib/products'
 import ImportExportButtons from '@/components/ImportExportButtons'
@@ -293,15 +294,43 @@ export default function AdminDashboard() {
 
   const loadLowStockAlerts = async () => {
     try {
-      const response = await fetch('/api/inventory/alerts')
+      const response = await fetch('/api/admin/inventory?low_stock=true')
       if (response.ok) {
         const data = await response.json()
         return data.data || []
       }
+      return []
     } catch (error) {
       console.error('Error loading low stock alerts:', error)
+      return []
     }
-    return []
+  }
+
+  // Update inventory
+  const updateInventory = async (inventoryId: string, updates: any) => {
+    try {
+      const response = await fetch(`/api/admin/inventory/${inventoryId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          quantity: updates.quantity,
+          low_stock_threshold: updates.lowStockThreshold,
+          allow_backorder: updates.allowBackorder,
+          track_inventory: updates.trackInventory
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Stok güncellenemedi')
+      }
+
+      await loadInventory()
+    } catch (error: any) {
+      console.error('Error updating inventory:', error)
+      alert('Hata: ' + (error.message || 'Stok güncellenemedi'))
+    }
   }
 
   const updateInventory = async (productId: string, updates: any) => {
@@ -1586,7 +1615,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
-          )}
+              )}
 
           {activeTab === 'categories' && (
             <div>
@@ -2779,7 +2808,7 @@ export default function AdminDashboard() {
                                   defaultValue={item.quantity}
                                   onBlur={async (e) => {
                                     const newQuantity = parseInt(e.target.value) || 0
-                                    await updateInventory(item.product_id, { quantity: newQuantity })
+                                    await updateInventory(item.id, { quantity: newQuantity })
                                   }}
                                   className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
                                 />
@@ -2790,7 +2819,7 @@ export default function AdminDashboard() {
                                   defaultValue={item.low_stock_threshold}
                                   onBlur={async (e) => {
                                     const newThreshold = parseInt(e.target.value) || 5
-                                    await updateInventory(item.product_id, { lowStockThreshold: newThreshold })
+                                    await updateInventory(item.id, { lowStockThreshold: newThreshold })
                                   }}
                                   className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
                                 />
@@ -2813,7 +2842,7 @@ export default function AdminDashboard() {
                                   type="checkbox"
                                   checked={item.allow_backorder || false}
                                   onChange={async (e) => {
-                                    await updateInventory(item.product_id, { allowBackorder: e.target.checked })
+                                    await updateInventory(item.id, { allowBackorder: e.target.checked })
                                   }}
                                   className="h-4 w-4 text-blue-600 rounded"
                                 />
@@ -2823,7 +2852,7 @@ export default function AdminDashboard() {
                                   type="checkbox"
                                   checked={item.track_inventory !== false}
                                   onChange={async (e) => {
-                                    await updateInventory(item.product_id, { trackInventory: e.target.checked })
+                                    await updateInventory(item.id, { trackInventory: e.target.checked })
                                   }}
                                   className="h-4 w-4 text-blue-600 rounded"
                                 />

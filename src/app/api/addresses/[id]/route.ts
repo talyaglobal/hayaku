@@ -6,16 +6,17 @@ import { requireAuth, handleAuthError } from '@/lib/auth-server'
 // GET /api/addresses/[id] - Get a specific address
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authUser = await requireAuth(request)
     const supabase = await createClient()
 
+    const resolvedParams = await params
     const { data, error } = await supabase
       .from('user_addresses')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .eq('user_id', authUser.user.id)
       .single()
 
