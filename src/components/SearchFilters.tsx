@@ -187,14 +187,14 @@ export default function SearchFilters({
                   <input
                     type="number"
                     placeholder="Min"
-                    value={filters.priceRange[0]}
+                    value={filters.priceRange?.[0] || 0}
                     onChange={(e) => handlePriceRangeChange(0, Number(e.target.value))}
                     className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
                   />
                   <input
                     type="number"
                     placeholder="Max"
-                    value={filters.priceRange[1]}
+                    value={filters.priceRange?.[1] || 10000}
                     onChange={(e) => handlePriceRangeChange(1, Number(e.target.value))}
                     className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
                   />
@@ -204,7 +204,7 @@ export default function SearchFilters({
                   min="0"
                   max="10000"
                   step="100"
-                  value={filters.priceRange[1]}
+                  value={filters.priceRange?.[1] || 10000}
                   onChange={(e) => handlePriceRangeChange(1, Number(e.target.value))}
                   className="w-full"
                 />
