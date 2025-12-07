@@ -1,22 +1,26 @@
-import Hero from '@/components/sections/Hero'
-import Founder from '@/components/sections/Founder'
-import Features from '@/components/sections/Features'
-import Products from '@/components/sections/Products'
-import Safety from '@/components/sections/Safety'
-import Testimonials from '@/components/sections/Testimonials'
-import CTA from '@/components/sections/CTA'
+import React from 'react'
 
 export default function HomePage() {
-  // HAYAKU marketing homepage
   return (
-    <div className="min-h-screen">
-      <Hero />
-      <Founder />
-      <Features />
-      <Products />
-      <Safety />
-      <Testimonials />
-      <CTA />
+    <div style={{ 
+      minHeight: '100vh', 
+      background: 'black', 
+      color: 'white', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      flexDirection: 'column',
+      fontFamily: 'Arial, sans-serif'
+    }}>
+      <h1 style={{ fontSize: '4rem', marginBottom: '1rem' }}>
+        🔥 HAYAKU
+      </h1>
+      <p style={{ fontSize: '1.5rem', marginBottom: '2rem' }}>
+        Tech Backpacks Made by Gen Z, For Gen Z
+      </p>
+      <p style={{ fontSize: '1rem', color: '#888' }}>
+        Meet Teo Guzel - 13 years old, changing tech forever
+      </p>
     </div>
   )
 }
