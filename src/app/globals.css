@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #fafafa;
+    color: #1a1a1a;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+  }
+}
+
+@layer components {
+  .luxury-button {
+    @apply px-8 py-3 font-medium tracking-wide uppercase transition-all duration-300 hover:shadow-lg transform hover:-translate-y-0.5;
+    background-color: #0a0a0a;
+    color: white;
+  }
+  
+  .luxury-button:hover {
+    background-color: #1a1a1a;
+  }
+  
+  .luxury-button-outline {
+    @apply px-8 py-3 font-medium tracking-wide uppercase transition-all duration-300;
+    border: 2px solid #0a0a0a;
+    color: #0a0a0a;
+  }
+  
+  .luxury-button-outline:hover {
+    background-color: #0a0a0a;
+    color: white;
+  }
+  
+  .brand-card {
+    @apply cursor-pointer transform transition-all duration-500 hover:scale-105 hover:shadow-2xl;
+  }
+  
+  .product-card {
+    @apply cursor-pointer overflow-hidden bg-white rounded-lg shadow-sm transition-all duration-300 hover:shadow-xl;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
