@@ -1,28 +1,15 @@
 import type { Metadata } from 'next'
-import { Inter, Playfair_Display } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import './globals.css'
-import { RatingProvider } from '@/lib/rating-context'
-import { WishlistProvider } from '@/lib/wishlist-context'
-import { BRAND } from '@/lib/brand'
+import { AuthProvider } from '@/components/AuthProvider'
+import Header from '@/components/Header'
+import CartSidebar from '@/components/CartSidebar'
 
-const inter = Inter({ 
-  subsets: ['latin'],
-  variable: '--font-inter'
-})
-
-const playfairDisplay = Playfair_Display({ 
-  subsets: ['latin'],
-  variable: '--font-playfair'
-})
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: BRAND.name,
-  description: 'HAYAKU – smart youth techwear.',
-  icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
-  },
+  title: 'Hayaku - Luxury E-commerce',
+  description: 'Premium luxury fashion and lifestyle products',
 }
 
 export default function RootLayout({
@@ -31,13 +18,20 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" dir="ltr">
-      <body className={`${inter.variable} ${playfairDisplay.variable} antialiased`} style={{ fontFamily: BRAND.fontFamily }}>
-        <WishlistProvider>
-          <RatingProvider>
-            {children}
-          </RatingProvider>
-        </WishlistProvider>
+    <html lang="en">
+      <body className={inter.className}>
+        <header>
+          <nav role="navigation">
+            <div>
+              <a href="/">Hayaku</a>
+              <a href="/products">Products</a>
+            </div>
+            <button aria-label="Cart" role="button">Cart</button>
+          </nav>
+        </header>
+        <main>
+          {children}
+        </main>
       </body>
     </html>
   )

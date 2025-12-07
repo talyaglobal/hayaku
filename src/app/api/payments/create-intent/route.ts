@@ -1,80 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, handleAuthError } from '@/lib/auth-server'
-import { createPaymentIntent } from '@/lib/payments'
-import { createClient } from '@/lib/supabase-server'
+import { stripe } from '@/lib/stripe'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 
-/**
- * POST /api/payments/create-intent
- * Create a Stripe Payment Intent for an order
- */
 export async function POST(request: NextRequest) {
   try {
-    const authUser = await requireAuth(request)
-    const body = await request.json()
-    const { orderId } = body
+    const supabase = createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-    if (!orderId) {
-      return NextResponse.json(
-        { error: 'Order ID is required' },
-        { status: 400 }
-      )
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    const supabase = await createClient()
-
-    // Verify order exists and belongs to user
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select('id, total_amount, currency, payment_status, user_id')
-      .eq('id', orderId)
-      .single()
-
-    if (orderError || !order) {
-      return NextResponse.json(
-        { error: 'Order not found' },
-        { status: 404 }
-      )
-    }
-
-    // Check if user owns the order (unless admin)
-    if (!authUser.isAdmin && order.user_id !== authUser.user.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      )
-    }
-
-    // Check if order is already paid
-    if (order.payment_status === 'paid') {
-      return NextResponse.json(
-        { error: 'Order is already paid' },
-        { status: 400 }
-      )
-    }
+    const { amount, currency = 'usd', items, shippingAddress, billingAddress } = await request.json()
 
     // Create payment intent
-    const { clientSecret, paymentIntentId } = await createPaymentIntent({
-      orderId: order.id,
-      amount: order.total_amount,
-      currency: order.currency || 'try',
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to cents
+      currency,
       metadata: {
-        user_id: authUser.user.id,
-        order_number: order.order_number || order.id,
+        userId: user.id,
+        userEmail: user.email || '',
+        itemCount: items?.length || 0,
+      },
+      automatic_payment_methods: {
+        enabled: true,
       },
     })
 
     return NextResponse.json({
-      clientSecret,
-      paymentIntentId,
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
     })
-  } catch (error) {
-    console.error('Create payment intent error:', error)
-    const authError = handleAuthError(error)
-    if (authError.status !== 500) {
-      return authError
-    }
+  } catch (error: any) {
+    console.error('Error creating payment intent:', error)
     return NextResponse.json(
-      { error: 'Failed to create payment intent' },
+      { error: error.message || 'Failed to create payment intent' },
       { status: 500 }
     )
   }

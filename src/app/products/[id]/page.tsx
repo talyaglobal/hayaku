@@ -1,36 +1,38 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, Heart, ShoppingBag, Truck, RotateCcw, Shield, Star, AlertCircle, Package } from 'lucide-react'
-import { getProduct } from '@/lib/products'
-import { useStore } from '@/lib/store'
-import { useRating } from '@/lib/rating-context'
-import { useWishlist } from '@/lib/wishlist-context'
-import { useInventory } from '@/lib/use-inventory'
-import ShoppingCart from '@/components/ShoppingCart'
+import { useParams } from 'next/navigation'
+import Image from 'next/image'
+import { Product } from '@/types'
+import { useCartStore } from '@/lib/cart-store'
 
-interface ProductPageProps {
-  params: Promise<{
-    id: string
-  }>
-}
-
-export default function ProductDetailPage({ params }: ProductPageProps) {
-  const [product, setProduct] = useState<any>(null)
+export default function ProductDetailPage() {
+  const { id } = useParams()
+  const { addItem, toggleCart } = useCartStore()
+  const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [selectedImage, setSelectedImage] = useState(0)
 
   useEffect(() => {
-    loadProduct()
-  }, [])
+    if (id) {
+      fetchProduct()
+    }
+  }, [id])
 
-  const loadProduct = async () => {
+  const fetchProduct = async () => {
+    setLoading(true)
     try {
-      const resolvedParams = await params
-      const productData = await getProduct(resolvedParams.id)
-      setProduct(productData)
-    } catch (error) {
-      console.error('Error loading product:', error)
+      const response = await fetch(`/api/products/${id}`)
+      const result = await response.json()
+
+      if (response.ok) {
+        setProduct(result.data)
+      } else {
+        setError(result.error)
+      }
+    } catch (err) {
+      setError('Failed to fetch product')
     } finally {
       setLoading(false)
     }
@@ -38,431 +40,127 @@ export default function ProductDetailPage({ params }: ProductPageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-luxury-gold"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading product...</div>
       </div>
     )
   }
 
-  if (!product) {
+  if (error || !product) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Ürün bulunamadı</h1>
-          <Link href="/products" className="text-luxury-gold hover:underline">
-            Ürünlere dön
-          </Link>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Product Not Found</h1>
+          <p className="text-gray-600">{error || 'The requested product could not be found.'}</p>
         </div>
       </div>
     )
-  }
-
-  return <ProductDetail product={product} />
-}
-
-function ProductDetail({ product }: { product: any }) {
-  const { addToCart, toggleCart } = useStore()
-  const { getRating, setRating: setGlobalRating } = useRating()
-  const { isInWishlist, toggleWishlist } = useWishlist()
-  const { status: inventoryStatus, loading: inventoryLoading } = useInventory(product.id)
-  
-  const [quantity, setQuantity] = useState(1)
-  const [hoverRating, setHoverRating] = useState(0)
-  const [stockError, setStockError] = useState<string | null>(null)
-  
-  const rating = getRating(product.id)
-  const inWishlist = isInWishlist(product.id)
-
-  const handleAddToCart = async () => {
-    setStockError(null)
-
-    // Check inventory before adding
-    if (inventoryStatus) {
-      if (inventoryStatus.isOutOfStock) {
-        setStockError('Bu ürün şu anda stokta bulunmamaktadır.')
-        return
-      }
-
-      if (inventoryStatus.availableQuantity > 0 && quantity > inventoryStatus.availableQuantity && !inventoryStatus.allowPreOrder) {
-        setStockError(`Sadece ${inventoryStatus.availableQuantity} adet ürün stokta mevcut.`)
-        return
-      }
-    }
-
-    try {
-      const response = await fetch('/api/cart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product.id,
-          quantity
-        })
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        if (result.code === 'OUT_OF_STOCK' || result.code === 'INSUFFICIENT_STOCK') {
-          setStockError(result.error)
-          return
-        }
-        throw new Error(result.error || 'Sepete eklenirken bir hata oluştu')
-      }
-
-      // Add to local cart state for UI
-      for (let i = 0; i < quantity; i++) {
-        addToCart({
-          id: product.id,
-          productId: product.id,
-          name: product.name,
-          brand: product.brand_name || 'Luxury Brand',
-          price: product.price,
-          image: product.product_images?.[0]?.url || '/placeholder-product.jpg',
-          size: 'Standard',
-          color: 'Default',
-          inStock: inventoryStatus?.isAvailable ?? true
-        })
-      }
-
-      alert(inventoryStatus?.allowPreOrder && inventoryStatus.availableQuantity === 0 
-        ? 'Ön sipariş sepete eklendi!' 
-        : 'Ürün sepete eklendi!')
-      setTimeout(() => {
-        toggleCart()
-      }, 100)
-    } catch (error: any) {
-      setStockError(error.message || 'Sepete eklenirken bir hata oluştu')
-    }
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Back Button */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <Link 
-          href="/products" 
-          className="inline-flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          <span>Ürünlere Dön</span>
-        </Link>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Product Images */}
-          <div className="space-y-4">
-            {/* Main Image */}
-            <div className="aspect-square bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center">
-              {product.product_images?.[0]?.url ? (
-                <img
-                  src={product.product_images[0].url}
-                  alt={product.product_images[0].alt_text || product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-64 h-64 bg-luxury-gold/10 rounded-lg flex items-center justify-center">
-                  <span className="font-luxury-serif text-6xl font-bold text-luxury-gold">
-                    {product.name?.charAt(0) || 'P'}
-                  </span>
-                </div>
-              )}
-            </div>
-            
-            {/* Thumbnail Images */}
-            {product.product_images && product.product_images.length > 1 && (
-              <div className="grid grid-cols-4 gap-2">
-                {product.product_images.slice(0, 4).map((image: any, index: number) => (
-                  <div
-                    key={index}
-                    className="aspect-square bg-gray-50 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                  >
-                    <img
-                      src={image.url}
-                      alt={image.alt_text || `${product.name} ${index + 1}`}
-                      className="w-full h-full object-cover"
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-8">
+            {/* Product Images */}
+            <div>
+              {product.product_images && product.product_images.length > 0 ? (
+                <div>
+                  <div className="aspect-square relative mb-4">
+                    <Image
+                      src={product.product_images[selectedImage].url}
+                      alt={product.product_images[selectedImage].alt_text || product.name}
+                      fill
+                      className="object-cover rounded-lg"
                     />
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Product Information */}
-          <div className="space-y-6">
-            {/* Brand and Title */}
-            <div>
-              <p className="text-sm font-medium text-luxury-gold mb-2">{product.brand_name || 'Luxury Brand'}</p>
-              <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
-                <button
-                  onClick={() => toggleWishlist({
-                    id: product.id,
-                    name: product.name,
-                    price: product.price,
-                    image: product.product_images?.[0]?.url || '/placeholder-product.jpg',
-                    brand: product.brand_name || 'Luxury Brand',
-                    slug: product.slug || product.id
-                  })}
-                  className={`p-2 rounded-full transition-colors ${
-                    inWishlist 
-                      ? 'text-red-500 bg-red-50 hover:bg-red-100' 
-                      : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
-                  }`}
-                >
-                  <Heart className={`h-6 w-6 ${inWishlist ? 'fill-red-500' : ''}`} />
-                </button>
-              </div>
-              <div className="flex items-center space-x-2 mt-2">
-                <div className="flex items-center space-x-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => setGlobalRating(product.id, star)}
-                      onMouseEnter={() => setHoverRating(star)}
-                      onMouseLeave={() => setHoverRating(0)}
-                      className="focus:outline-none transition-colors"
-                    >
-                      <Star 
-                        className={`h-4 w-4 transition-colors ${
-                          star <= (hoverRating || rating)
-                            ? 'text-yellow-400 fill-yellow-400' 
-                            : 'text-gray-300 hover:text-yellow-300'
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-                <span className="text-sm text-gray-600">({rating} yıldız)</span>
-              </div>
-            </div>
-
-            {/* Price */}
-            <div>
-              <div className="flex items-center space-x-4">
-                <p className="text-3xl font-bold text-gray-900">
-                  {product.price?.toLocaleString('tr-TR')} {product.currency || 'TRY'}
-                </p>
-                {product.compare_price && product.compare_price > product.price && (
-                  <p className="text-xl text-gray-500 line-through">
-                    {product.compare_price.toLocaleString('tr-TR')} {product.currency || 'TRY'}
-                  </p>
-                )}
-              </div>
-              {product.is_featured && (
-                <p className="text-sm text-luxury-gold font-medium mt-1">Öne Çıkan Ürün</p>
-              )}
-            </div>
-
-            {/* Stock Status */}
-            {!inventoryLoading && inventoryStatus && (
-              <div className={`p-4 rounded-lg border ${
-                inventoryStatus.isOutOfStock 
-                  ? 'bg-red-50 border-red-200' 
-                  : inventoryStatus.isLowStock 
-                    ? 'bg-yellow-50 border-yellow-200'
-                    : inventoryStatus.allowPreOrder && inventoryStatus.availableQuantity === 0
-                      ? 'bg-blue-50 border-blue-200'
-                      : 'bg-green-50 border-green-200'
-              }`}>
-                <div className="flex items-center space-x-2">
-                  {inventoryStatus.isOutOfStock ? (
-                    <>
-                      <AlertCircle className="h-5 w-5 text-red-600" />
-                      <span className="font-medium text-red-900">Stokta Yok</span>
-                    </>
-                  ) : inventoryStatus.allowPreOrder && inventoryStatus.availableQuantity === 0 ? (
-                    <>
-                      <Package className="h-5 w-5 text-blue-600" />
-                      <span className="font-medium text-blue-900">Ön Sipariş Mevcut</span>
-                    </>
-                  ) : inventoryStatus.isLowStock ? (
-                    <>
-                      <AlertCircle className="h-5 w-5 text-yellow-600" />
-                      <span className="font-medium text-yellow-900">Düşük Stok</span>
-                      <span className="text-sm text-yellow-700">
-                        (Sadece {inventoryStatus.availableQuantity} adet kaldı)
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Package className="h-5 w-5 text-green-600" />
-                      <span className="font-medium text-green-900">Stokta Var</span>
-                      {inventoryStatus.availableQuantity > 0 && (
-                        <span className="text-sm text-green-700">
-                          ({inventoryStatus.availableQuantity} adet mevcut)
-                        </span>
-                      )}
-                    </>
+                  {product.product_images.length > 1 && (
+                    <div className="grid grid-cols-4 gap-2">
+                      {product.product_images.map((image, index) => (
+                        <button
+                          key={image.id || index}
+                          onClick={() => setSelectedImage(index)}
+                          className={`aspect-square relative rounded-md overflow-hidden ${
+                            selectedImage === index ? 'ring-2 ring-indigo-500' : ''
+                          }`}
+                        >
+                          <Image
+                            src={image.url}
+                            alt={image.alt_text || product.name}
+                            fill
+                            className="object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
-                {inventoryStatus.allowPreOrder && inventoryStatus.availableQuantity === 0 && (
-                  <p className="text-sm text-blue-700 mt-2">
-                    Bu ürün için ön sipariş verebilirsiniz. Ürün stoklarımıza geldiğinde size bildirim göndereceğiz.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Description */}
-            <div>
-              <p className="text-gray-600 leading-relaxed">{product.description}</p>
-            </div>
-
-            {/* Tags */}
-            {product.tags && product.tags.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-3">Etiketler</h3>
-                <div className="flex flex-wrap gap-2">
-                  {product.tags.map((tag: string) => (
-                    <span
-                      key={tag}
-                      className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full"
-                    >
-                      {tag}
-                    </span>
-                  ))}
+              ) : (
+                <div className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
+                  <span className="text-gray-400">No image available</span>
                 </div>
-              </div>
-            )}
-
-            {/* Quantity */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-900 mb-3">Adet</h3>
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400"
-                  disabled={quantity <= 1}
-                >
-                  -
-                </button>
-                <span className="w-8 text-center font-medium">{quantity}</span>
-                <button
-                  onClick={() => {
-                    const maxQuantity = inventoryStatus?.availableQuantity > 0 
-                      ? inventoryStatus.availableQuantity 
-                      : undefined
-                    if (!maxQuantity || quantity < maxQuantity) {
-                      setQuantity(quantity + 1)
-                    }
-                  }}
-                  disabled={inventoryStatus?.availableQuantity > 0 && quantity >= inventoryStatus.availableQuantity}
-                  className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            {/* Stock Error Message */}
-            {stockError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-800">{stockError}</p>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="space-y-3">
-              <button
-                onClick={handleAddToCart}
-                disabled={inventoryStatus?.isOutOfStock && !inventoryStatus?.allowPreOrder}
-                className={`w-full py-3 px-6 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 ${
-                  inventoryStatus?.isOutOfStock && !inventoryStatus?.allowPreOrder
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : inventoryStatus?.allowPreOrder && inventoryStatus?.availableQuantity === 0
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-black text-white hover:bg-gray-800'
-                }`}
-              >
-                <ShoppingBag className="h-5 w-5" />
-                <span>
-                  {inventoryStatus?.allowPreOrder && inventoryStatus?.availableQuantity === 0
-                    ? 'Ön Sipariş Ver'
-                    : inventoryStatus?.isOutOfStock && !inventoryStatus?.allowPreOrder
-                      ? 'Stokta Yok'
-                      : 'Sepete Ekle'}
-                </span>
-              </button>
-              
-              <button
-                onClick={() => {
-                  toggleWishlist({
-                    id: product.id,
-                    name: product.name,
-                    price: product.price,
-                    image: product.product_images?.[0]?.url || '/placeholder-product.jpg',
-                    brand: product.brand_name || 'Luxury Brand',
-                    slug: product.slug || product.id
-                  })
-                  alert(inWishlist ? 'Favorilerden çıkarıldı!' : 'Favorilere eklendi!')
-                }}
-                className={`w-full py-3 px-6 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 ${
-                  inWishlist 
-                    ? 'bg-red-50 border border-red-200 text-red-700 hover:bg-red-100' 
-                    : 'border border-gray-300 text-gray-900 hover:border-gray-400'
-                }`}
-              >
-                <Heart className={`h-5 w-5 ${inWishlist ? 'fill-red-500 text-red-500' : ''}`} />
-                <span>{inWishlist ? 'Favorilerden Çıkar' : 'Favorilere Ekle'}</span>
-              </button>
-            </div>
-
-            {/* Product Features */}
-            <div className="border-t pt-6 space-y-4">
-              <div className="flex items-start space-x-3">
-                <Truck className="h-5 w-5 text-luxury-gold flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-gray-900">Ücretsiz Kargo</p>
-                  <p className="text-sm text-gray-600">2000 TL üzeri siparişlerde</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-3">
-                <RotateCcw className="h-5 w-5 text-luxury-gold flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-gray-900">30 Gün İade</p>
-                  <p className="text-sm text-gray-600">Koşulsuz iade garantisi</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-3">
-                <Shield className="h-5 w-5 text-luxury-gold flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-gray-900">Orijinallik Garantisi</p>
-                  <p className="text-sm text-gray-600">%100 orijinal ürün güvencesi</p>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Product Details */}
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Ürün Detayları</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex">
-                  <span className="text-gray-600 w-24">SKU:</span>
-                  <span className="text-gray-900">{product.sku}</span>
-                </div>
-                <div className="flex">
-                  <span className="text-gray-600 w-24">Marka:</span>
-                  <span className="text-gray-900">{product.brand_name}</span>
-                </div>
-                <div className="flex">
-                  <span className="text-gray-600 w-24">Kategori:</span>
-                  <span className="text-gray-900">{product.category_name}</span>
-                </div>
-                <div className="flex">
-                  <span className="text-gray-600 w-24">Durum:</span>
-                  <span className={product.is_active ? 'text-green-600' : 'text-red-600'}>
-                    {product.is_active ? 'Aktif' : 'Pasif'}
+            <div>
+              <div className="mb-4">
+                {product.brands && (
+                  <p className="text-sm text-gray-600 mb-1">{product.brands.name}</p>
+                )}
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">{product.name}</h1>
+                
+                <div className="flex items-center gap-4 mb-6">
+                  <span className="text-3xl font-bold text-gray-900">
+                    {product.currency} {product.price}
                   </span>
+                  {product.compare_price && product.compare_price > product.price && (
+                    <span className="text-xl text-gray-500 line-through">
+                      {product.currency} {product.compare_price}
+                    </span>
+                  )}
                 </div>
+
+                {product.description && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+                    <p className="text-gray-700 leading-relaxed">{product.description}</p>
+                  </div>
+                )}
+
+                {product.categories && (
+                  <div className="mb-6">
+                    <span className="inline-block bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">
+                      {product.categories.name}
+                    </span>
+                  </div>
+                )}
+
+                <button 
+                  onClick={() => {
+                    const cartItem = {
+                      id: product.id,
+                      productId: product.id,
+                      name: product.name,
+                      price: product.price,
+                      image: product.product_images?.[0]?.url || '/placeholder.jpg',
+                      brand: product.brands?.name || 'Unknown Brand',
+                      size: '',
+                      color: '',
+                      inStock: true
+                    }
+                    addItem(cartItem)
+                    toggleCart()
+                  }}
+                  className="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+                >
+                  Add to Cart
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <ShoppingCart />
     </div>
   )
 }
