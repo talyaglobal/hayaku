@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import '../globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://hayaku.com'),
   title: 'HAYAKU - Tech Gear That Gets Your Generation',
   description: 'The world\'s safest charging backpack, created by a 13-year-old for Gen Z. LiFePO₄ technology meets street-level style.',
   keywords: 'backpack, charging backpack, Gen Z, tech gear, LiFePO4, safe charging, student backpack',
