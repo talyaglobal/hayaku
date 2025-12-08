@@ -1,8 +1,10 @@
-import { heroContent, founderContent, ctaContent } from '../src/lib/marketing-content'
-import { products } from '../src/lib/products'
-import { features } from '../src/lib/features'
-import { safetyContent } from '../src/lib/safety'
-import { testimonials } from '../src/lib/testimonials'
+'use client'
+
+import { heroContent, founderContent, ctaContent } from '../lib/marketing-content'
+import { products } from '../lib/products'
+import { features } from '../lib/features'
+import { safetyContent } from '../lib/safety'
+import { testimonials } from '../lib/testimonials'
 
 export default function HomePage() {
   return (
@@ -331,27 +333,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      <style jsx>{`
-        .bg-gradient-to-r {
-          background: linear-gradient(to right, var(--tw-gradient-stops));
-        }
-        .bg-gradient-to-br {
-          background: linear-gradient(to bottom right, var(--tw-gradient-stops));
-        }
-        .from-black { --tw-gradient-from: #000; }
-        .via-gray-900 { --tw-gradient-to: #111827; }
-        .to-black { --tw-gradient-to: #000; }
-        .from-red-600 { --tw-gradient-from: #dc2626; }
-        .to-red-800 { --tw-gradient-to: #991b1b; }
-        .bg-clip-text {
-          -webkit-background-clip: text;
-          background-clip: text;
-        }
-        .text-transparent {
-          color: transparent;
-        }
-      `}</style>
     </>
   )
 }
