@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { heroContent, founderContent, ctaContent } from '../lib/marketing-content'
 import { products } from '../lib/products'
 import { features } from '../lib/features'
@@ -27,12 +28,12 @@ export default function HomePage() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-            <button className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl">
+            <Link href="/shop" className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl">
               {heroContent.primaryCTA}
-            </button>
-            <button className="border border-white/30 hover:border-white/60 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 backdrop-blur-sm hover:bg-white/10">
+            </Link>
+            <Link href="/meet-teo" className="border border-white/30 hover:border-white/60 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 backdrop-blur-sm hover:bg-white/10">
               {heroContent.secondaryCTA}
-            </button>
+            </Link>
           </div>
           
           <div className="mt-16 text-gray-400">
@@ -313,12 +314,12 @@ export default function HomePage() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">
-            <button className="bg-white text-red-600 hover:bg-gray-100 px-10 py-4 rounded-xl font-bold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <Link href="/shop" className="bg-white text-red-600 hover:bg-gray-100 px-10 py-4 rounded-xl font-bold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg">
               {ctaContent.main.primaryButton}
-            </button>
-            <button className="border-2 border-white hover:bg-white hover:text-red-600 text-white px-10 py-4 rounded-xl font-bold text-lg transition-all duration-200">
+            </Link>
+            <Link href="/meet-teo" className="border-2 border-white hover:bg-white hover:text-red-600 text-white px-10 py-4 rounded-xl font-bold text-lg transition-all duration-200">
               {ctaContent.main.secondaryButton}
-            </button>
+            </Link>
           </div>
           
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-3xl mx-auto">
