@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Search, Clock, TrendingUp, X } from 'lucide-react'
+import Image from 'next/image'
 import { Product, Brand, Category } from '@/types'
 
 interface SearchSuggestion {
@@ -316,9 +317,11 @@ export default function SearchAutocomplete({
                         })}
                         className="w-full flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg text-left"
                       >
-                        <img
+                        <Image
                           src={product.image}
                           alt={product.title}
+                          width={40}
+                          height={40}
                           className="w-10 h-10 rounded-lg object-cover"
                         />
                         <div>
@@ -362,9 +365,11 @@ export default function SearchAutocomplete({
                   }`}
                 >
                   {suggestion.image ? (
-                    <img
+                    <Image
                       src={suggestion.image}
                       alt={suggestion.title}
+                      width={40}
+                      height={40}
                       className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
                     />
                   ) : (

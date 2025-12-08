@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Eye, Clock, X, ChevronLeft, ChevronRight, BarChart3, Trash2 } from 'lucide-react'
+import Image from 'next/image'
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed'
 import { Product } from '@/types'
 
@@ -122,9 +123,11 @@ export default function RecentlyViewed({
       onClick={() => handleProductClick(product)}
     >
       <div className="relative">
-        <img
+        <Image
           src={product.product_images?.[0]?.url || '/api/placeholder/200/200'}
           alt={product.name}
+          width={200}
+          height={compact ? 128 : 192}
           className={`w-full object-cover rounded ${compact ? 'h-32' : 'h-48'}`}
         />
         <button
@@ -288,9 +291,11 @@ export default function RecentlyViewed({
                 className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow cursor-pointer group"
                 onClick={() => handleProductClick(product)}
               >
-                <img
+                <Image
                   src={product.product_images?.[0]?.url || '/api/placeholder/80/80'}
                   alt={product.name}
+                  width={80}
+                  height={80}
                   className="w-20 h-20 object-cover rounded"
                 />
                 <div className="flex-grow min-w-0">

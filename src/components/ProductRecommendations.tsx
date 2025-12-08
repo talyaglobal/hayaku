@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Sparkles, TrendingUp, Star, Clock, Settings, ChevronLeft, ChevronRight } from 'lucide-react'
+import Image from 'next/image'
 import { useRecommendations, ProductRecommendation, RecommendationEngine } from '@/hooks/useRecommendations'
 import { Product } from '@/types'
 
@@ -43,12 +44,7 @@ export default function ProductRecommendations({
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showEngineSettings, setShowEngineSettings] = useState(false)
 
-  // Load recommendations on mount and when dependencies change
-  useEffect(() => {
-    loadRecommendations()
-  }, [allProducts, engines, limit])
-
-  const loadRecommendations = async () => {
+  const loadRecommendations = useCallback(async () => {
     try {
       const results = engines 
         ? await getRecommendations({ engines, limit, excludeViewed: true })
@@ -59,7 +55,12 @@ export default function ProductRecommendations({
       console.error('Error loading recommendations:', error)
       setRecommendations([])
     }
-  }
+  }, [engines, limit, getRecommendations, getPersonalizedRecommendations])
+
+  // Load recommendations on mount and when dependencies change
+  useEffect(() => {
+    loadRecommendations()
+  }, [loadRecommendations])
 
   const handleProductClick = (product: Product) => {
     onProductClick?.(product)
@@ -134,9 +135,11 @@ export default function ProductRecommendations({
         onClick={() => handleProductClick(product)}
       >
         <div className="relative">
-          <img
+          <Image
             src={product.product_images?.[0]?.url || '/api/placeholder/250/250'}
             alt={product.name}
+            width={250}
+            height={compact ? 160 : 192}
             className={`w-full object-cover rounded ${compact ? 'h-40' : 'h-48'}`}
           />
           
@@ -358,9 +361,11 @@ export default function ProductRecommendations({
               className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => handleProductClick(recommendation.product)}
             >
-              <img
+              <Image
                 src={recommendation.product.product_images?.[0]?.url || '/api/placeholder/80/80'}
                 alt={recommendation.product.name}
+                width={80}
+                height={80}
                 className="w-20 h-20 object-cover rounded"
               />
               <div className="flex-grow min-w-0">
